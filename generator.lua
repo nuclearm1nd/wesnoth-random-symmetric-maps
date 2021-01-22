@@ -29,8 +29,8 @@ function write_to_file(map)
 end
 
 function generate_map()
-    width = 20
-    height = 15
+    width = 32
+    height = 16
     map = { width = width, height = height, name = "test" }
     codes = {}
 
@@ -38,9 +38,14 @@ function generate_map()
         codes[i] = {}
 
         for j = 1, width / 2 do
-            if(math.random() > 0.5)
-            then
+            rnd = math.random()
+
+            if (rnd > 0.975) then
+                codes[i][j] = "Gs^Vh"
+            elseif (rnd > 0.75) then
                 codes[i][j] = "Gs^Fds"
+            elseif (rnd > 0.5) then
+                codes[i][j] = "Gs"
             else
                 codes[i][j] = "Gg"
             end

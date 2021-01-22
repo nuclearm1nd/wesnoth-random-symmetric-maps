@@ -1,3 +1,5 @@
+utils = require('utils')
+
 function write_to_file(map)
     file = io.open(map["name"] .. ".map", "w+")
 
@@ -52,11 +54,26 @@ function generate_map()
         end
     end
 
+    x = math.floor(math.random(2, width / 4 ))
+    y = math.floor(math.random(2, height / 2))
+    neighbors = utils.neighbors(x, y, map)
+    i1 = 0
+
+    while(neighbors[i1] ~= nil) do
+        x1 = neighbors[i1][0]
+        y1 = neighbors[i1][1]
+        codes[y1][x1] = "Ce"
+        i1 = i1 + 1
+    end
+
     for i = 0, height - 1 do
         for j = 0, width / 2 - 1 do
             codes[height - i][width - j] = codes[i + 1][j + 1]
         end
     end
+
+    codes[y][x] = "1 Ke"
+    codes[height - y + 1][width - x + 1] = "2 Ke"
 
     map["codes"] = codes
     return map

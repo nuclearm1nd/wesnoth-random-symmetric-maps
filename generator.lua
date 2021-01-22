@@ -14,12 +14,7 @@ function write_to_file(map)
             then
                 file:write("_off^_usr")
             else
-                if(math.random() > 0.95)
-                then
-                    file:write("Gg^Vh")
-                else
-                    file:write("Gg")
-                end
+                file:write(map["codes"][i][j])
             end
 
             if (j < width + 1) then
@@ -33,6 +28,34 @@ function write_to_file(map)
     file:close()
 end
 
-map = { width = 20, height = 15, name = "test" }
-write_to_file(map)
+function generate_map()
+    width = 20
+    height = 15
+    map = { width = width, height = height, name = "test" }
+    codes = {}
+
+    for i = 1, height do
+        codes[i] = {}
+
+        for j = 1, width / 2 do
+            if(math.random() > 0.5)
+            then
+                codes[i][j] = "Gs^Fds"
+            else
+                codes[i][j] = "Gg"
+            end
+        end
+    end
+
+    for i = 0, height - 1 do
+        for j = 0, width / 2 - 1 do
+            codes[height - i][width - j] = codes[i + 1][j + 1]
+        end
+    end
+
+    map["codes"] = codes
+    return map
+end
+
+write_to_file(generate_map())
 

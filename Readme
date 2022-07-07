@@ -1,8 +1,9 @@
-Generate map:
-lua5.2 generator.lua
-
 Install luaunit package (requires luarocks package manager to be installed)
-luarocks --lua-version 5.2 install --tree .luamodules luaunit
+luarocks install --tree .luamodules luaunit
 
 Run unit tests
-lua5.2 test_generator.lua
+make tst
+
+Copy files to wesnoth addons folder
+make deploy
+

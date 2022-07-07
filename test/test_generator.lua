@@ -1,6 +1,6 @@
-package.path = package.path .. ";.luamodules/share/lua/5.2/luaunit.lua"
+package.path = package.path .. ";.luamodules/share/lua/5.4/luaunit.lua"
 lu = require('luaunit')
-utils = require('utils')
+utils = require('../lua/utils')
 
 function testPoint()
     point = utils.point(1, 2)
@@ -9,7 +9,7 @@ function testPoint()
 end
 
 function testNeighborsCenterEven()
-    map = { height = 5, width = 5 } 
+    map = { height = 5, width = 5 }
     neighbors = utils.neighbors(2, 2, map)
 
     lu.assertEquals(neighbors[0][0], 2)
@@ -34,7 +34,7 @@ function testNeighborsCenterEven()
 end
 
 function testNeighborsCenterOdd()
-    map = { height = 5, width = 5 } 
+    map = { height = 5, width = 5 }
     neighbors = utils.neighbors(3, 3, map)
 
     lu.assertEquals(neighbors[0][0], 3)
@@ -59,7 +59,7 @@ function testNeighborsCenterOdd()
 end
 
 function testNeighborsTopLeft()
-    map = { height = 5, width = 5 } 
+    map = { height = 5, width = 5 }
     neighbors = utils.neighbors(1, 1, map)
 
     lu.assertEquals(neighbors[0][0], 2)
@@ -72,7 +72,7 @@ function testNeighborsTopLeft()
 end
 
 function testNeighborsBottomRight()
-    map = { height = 5, width = 5 } 
+    map = { height = 5, width = 5 }
     neighbors = utils.neighbors(5, 5, map)
 
     lu.assertEquals(neighbors[0][0], 5)
@@ -88,7 +88,7 @@ function testNeighborsBottomRight()
 end
 
 function testNeighborsTopCenter()
-    map = { height = 5, width = 5 } 
+    map = { height = 5, width = 5 }
     neighbors = utils.neighbors(4, 1, map)
 
     lu.assertEquals(neighbors[0][0], 5)

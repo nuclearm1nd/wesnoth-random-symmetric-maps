@@ -1,39 +1,17 @@
-utils = require('utils')
+local utils
 
-function write_to_file(map)
-    file = io.open(map["name"] .. ".map", "w+")
-
-    width = map["width"]
-    height = map["height"]
-
-    for i = 0, height + 1, 1 do
-        for j = 0, width + 1, 1 do
-            
-            if(    i == 0
-                or j == 0
-                or i == height + 1
-                or j == width + 1)
-            then
-                file:write("_off^_usr")
-            else
-                file:write(map["codes"][i][j])
-            end
-
-            if (j < width + 1) then
-                file:write(", ")
-            end
-        end
-
-        file:write("\n")
-    end
-
-    file:close()
+if wesnoth.require then
+  utils = wesnoth.require('utils')
+else
+  utils = require('utils')
 end
+
+local generator = {}
 
 function generate_map()
     width = 32
     height = 16
-    map = { width = width, height = height, name = "test" }
+    map = { width = width, height = height }
     codes = {}
 
     for i = 1, height do
@@ -79,5 +57,47 @@ function generate_map()
     return map
 end
 
-write_to_file(generate_map())
+function map_to_string(map)
+    result = ""
+
+    width = map["width"]
+    height = map["height"]
+
+    for i = 0, height + 1, 1 do
+        for j = 0, width + 1, 1 do
+
+            if(    i == 0
+                or j == 0
+                or i == height + 1
+                or j == width + 1)
+            then
+                result = result .. "_off^_usr"
+            else
+                result = result .. map["codes"][i][j]
+            end
+
+            if (j < width + 1) then
+                result = result .. ", "
+            end
+        end
+
+        result = result .. "\n"
+    end
+
+    return result
+end
+
+function generator.generate_map_string()
+  return map_to_string(generate_map())
+end
+
+return generator
+
+--function write_to_file(map_string)
+--    file = io.open("test.map", "w+")
+--    file:write(map_string)
+--    file:close()
+--end
+
+-- write_to_file(map_to_string(generate_map()))
 

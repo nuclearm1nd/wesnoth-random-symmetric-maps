@@ -3,35 +3,60 @@
     (wesnoth.require :util)
     (require :util)))
 
-(fn generate-map []
-  (let [width 32
-        height 16
-        map {: width : height}
-        codes {}]
+(fn all-coords [{: width : height}]
+  (let [result {}]
     (for [i 1 height 1]
-      (tset codes i {})
-      (for [j 1 (/ width 2) 1]
-        (let [rnd (math.random)]
-          (if (> rnd 0.975) (tset (. codes i) j "Gs^Vh")
-              (> rnd 0.75)  (tset (. codes i) j "Gs^Fds")
-              (> rnd 0.5)   (tset (. codes i) j "Gs")
-              (tset (. codes i) j "Gg")))))
-    (let [x (math.floor (math.random 2 (/ width 4)))
-          y (math.floor (math.random 2 (/ height 2)))
-          neighbors (neighbors [x y] map)]
-      (each [_ [x1 y1] (pairs neighbors)]
-        (tset (. codes y1) x1 "Ce"))
-      (for [i 0 (- height 1) 1]
-        (for [j 0 (- (/ width 2) 1) 1]
-          (tset (. codes (- height i)) (- width j)
-                (. (. codes (+ i 1)) (+ j 1)))))
-      (tset (. codes y) x "1 Ke")
-      (tset (. codes (+ (- height y) 1))
-            (+ (- width x) 1) "2 Ke")
-      (tset map :codes codes)
-      map)))
+      (for [j 1 width 1]
+        (table.insert result [j i])))
+    (ipairs result)))
 
-(fn map-to-string [{: width : height &as map}]
+(fn half-coords [{: width : height}]
+  (let [result {}]
+    (for [i 1 height 1]
+      (for [j 1 (/ width 2) 1]
+        (table.insert result [j i])))
+    (ipairs result)))
+
+(fn hset [hexes [x y] value]
+  (tset (. hexes y) x value))
+
+(fn gen-size-shape []
+  (let [width 28
+        height 16
+        hexes {}]
+    (for [i 1 height 1]
+      (tset hexes i {})
+      (for [j 1 width 1]
+        (tset (. hexes i) j "Gg")))
+  {:width  width
+   :height height
+   :hexes  hexes}))
+
+(fn gen-half [{: hexes &as map}]
+  (each [_ crd (half-coords map)]
+    (let [rnd (math.random)]
+      (if (> rnd 0.975) (hset hexes crd "Gs^Vh")
+          (> rnd 0.75)  (hset hexes crd "Gs^Fds")
+          (> rnd 0.5)   (hset hexes crd "Gs")
+                        (hset hexes crd "Gg"))))
+  map)
+
+(fn generate-map [{: width : height : hexes &as map}]
+  (let [x (math.floor (math.random 2 (/ width 4)))
+        y (math.floor (math.random 2 (/ height 2)))
+        nhbrs (neighbors [x y] map)]
+    (each [_ crd (ipairs nhbrs)]
+      (hset hexes crd "Ce"))
+    (for [i 0 (- height 1) 1]
+      (for [j 0 (- (/ width 2) 1) 1]
+        (tset (. hexes (- height i)) (- width j)
+              (. (. hexes (+ i 1)) (+ j 1)))))
+    (tset (. hexes y) x "1 Ke")
+    (tset (. hexes (+ (- height y) 1))
+          (+ (- width x) 1) "2 Ke")
+    map))
+
+(fn map-to-string [{: width : height : hexes}]
   (var result "")
   (for [i 0 (+ height 1) 1]
     (for [j 0 (+ width 1) 1]
@@ -42,14 +67,18 @@
           (set result (.. result "_off^_usr"))
           (set result
                   (.. result
-                      (. (. (. map :codes) i) j))))
+                      (. (. hexes i) j))))
       (when (< j (+ width 1))
         (set result (.. result ", "))))
     (set result (.. result "\n")))
   result)
 
 (fn generate-map-string []
-  (map-to-string (generate-map)))
+  (->
+    (gen-size-shape)
+    gen-half
+    generate-map
+    map-to-string))
 
 {:generate generate-map-string}
 

@@ -3,6 +3,43 @@
     (wesnoth.require :util)
     (require :util)))
 
+(local codes
+  {:village "Gg^Vh"
+   :forest "Gg^Fds"
+   :flat "Gg"
+   :hill "Hh"
+   :mountain "Mm"
+   :ford "Wwf"
+   :shallow-water "Ww"
+   :sand "Ds"
+   :fungus "Uu^Tf"
+   :swamp "Ss"
+   :encampment "Ce"
+   :keep1 "1 Ke"
+   :keep2 "2 Ke"})
+
+(local random-landscape-weights
+  {:flat 120
+   :forest 25
+   :hill 10
+   :mountain 5
+   :ford 10
+   :shallow-water 5
+   :village 6
+   :sand 2
+   :fungus 1
+   :swamp 1})
+
+(lambda random-hex-gen [weights]
+  (var total 0)
+  (var gap-table {})
+  (each [k v (pairs weights)]
+    (for [i 1 v]
+      (table.insert gap-table k))
+    (set total (+ total v)))
+  (lambda []
+    (. gap-table (math.random total))))
+
 (lambda all-coords [{: width : height}]
   (let [result {}]
     (for [y 1 height 1]
@@ -17,6 +54,12 @@
         (table.insert result [x y])))
     (ipairs result)))
 
+(lambda off-map? [[x y] {: width : height}]
+  (or (or (or (= y 0)
+              (= x 0))
+          (= y (+ height 1)))
+      (= x (+ width 1))))
+
 (lambda hget [hexes [x y]]
   (. (. hexes y) x))
 
@@ -28,13 +71,18 @@
    (-> height (+ 1) (- y))])
 
 (lambda sym-hex [{: hexes &as map} crd]
-  (hset hexes
-        (symmetric crd map)
-        (hget hexes crd)))
+  (let [hex (hget hexes crd)
+        sym (if (= :keep1 hex)
+                :keep2
+                hex)]
+    (hset hexes
+          (symmetric crd map)
+          sym)))
 
-(lambda sym-map [{: hexes &as map}]
+(lambda symmetrize-map [{: hexes &as map}]
   (each [_ crd (half-coords map)]
-    (sym-hex map crd)))
+    (sym-hex map crd))
+  map)
 
 (lambda gen-size-shape []
   (let [width 28
@@ -43,44 +91,36 @@
     (for [y 1 height 1]
       (tset hexes y {})
       (for [x 1 width 1]
-        (tset (. hexes y) x "Gg")))
+        (tset (. hexes y) x :grass)))
   {:width  width
    :height height
    :hexes  hexes}))
 
 (lambda gen-half [{: hexes &as map}]
-  (each [_ crd (half-coords map)]
-    (let [rnd (math.random)]
-      (if (> rnd 0.975) (hset hexes crd "Gs^Vh")
-          (> rnd 0.75)  (hset hexes crd "Gs^Fds")
-          (> rnd 0.5)   (hset hexes crd "Gs")
-                        (hset hexes crd "Gg"))))
-  map)
+  (let [random-hex (random-hex-gen random-landscape-weights)]
+    (each [_ crd (half-coords map)]
+      (hset hexes crd (random-hex)))
+  map))
 
-(lambda generate-map [{: width : height : hexes &as map}]
+(lambda place-keep [{: width : height : hexes &as map}]
   (let [keep [(math.floor (math.random 2 (/ width 4)))
               (math.floor (math.random 2 (/ height 2)))]
         nhbrs (neighbors keep map)]
     (each [_ crd (ipairs nhbrs)]
-      (hset hexes crd "Ce"))
-    (sym-map map)
-    (hset hexes keep "1 Ke")
-    (hset hexes (symmetric keep map) "2 Ke")
+      (hset hexes crd :encampment))
+    (hset hexes keep :keep1)
     map))
 
-(lambda map-to-string [{: width : height : hexes}]
+(lambda map-to-string [{: width : height : hexes &as map}]
   (var result "")
-  (for [i 0 (+ height 1) 1]
-    (for [j 0 (+ width 1) 1]
-      (if (or (or (or (= i 0)
-                      (= j 0))
-                  (= i (+ height 1)))
-              (= j (+ width 1)))
+  (for [y 0 (+ height 1) 1]
+    (for [x 0 (+ width 1) 1]
+      (if (off-map? [x y] map)
           (set result (.. result "_off^_usr"))
           (set result
-                  (.. result
-                      (. (. hexes i) j))))
-      (when (< j (+ width 1))
+            (.. result
+                (. codes (hget hexes [x y])))))
+      (when (< x (+ width 1))
         (set result (.. result ", "))))
     (set result (.. result "\n")))
   result)
@@ -89,7 +129,8 @@
   (->
     (gen-size-shape)
     gen-half
-    generate-map
+    place-keep
+    symmetrize-map
     map-to-string))
 
 {:generate generate-map-string}

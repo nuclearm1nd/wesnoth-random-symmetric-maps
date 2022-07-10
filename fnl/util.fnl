@@ -1,6 +1,6 @@
-(fn neighbors [[x y] {: width : height}]
+(lambda neighbors [[x y] {: width : height}]
   (let [result []
-        add (fn [crd]
+        add (lambda [crd]
               (table.insert result crd))]
     (when (> (- y 1) 0)
       (add [x (- y 1)]))

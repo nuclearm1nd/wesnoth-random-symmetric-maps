@@ -40,17 +40,19 @@
 
 (lambda to-string [{: width : height : hexes : on-map?} codes]
   (var result "")
-  (for [y 0 (+ height 1) 1]
-    (for [x 0 (+ width 1) 1]
-      (if (on-map? [x y])
-          (set result
-            (.. result
-                (. codes (hget hexes [x y]))))
-          (set result (.. result (. codes :off-map))))
-      (when (< x (+ width 1))
-        (set result (.. result ", "))))
-    (set result (.. result "\n")))
-  result)
+  (let [add (lambda [val]
+              (set result (.. result val)))
+        get-code (lambda [crd]
+                   (if (on-map? crd)
+                     (. codes (hget hexes crd))
+                     (. codes :off-map)))]
+    (for [y 0 (+ height 1) 1]
+      (for [x 0 (+ width 1) 1]
+        (add (get-code [x y]))
+        (when (< x (+ width 1))
+          (add ", ")))
+      (add "\n"))
+    result))
 
 (lambda half-coords [{: width : height}]
   (let [result {}]

@@ -21,20 +21,17 @@
    :mountain 5
    :ford 10
    :shallow-water 5
-   :village 6
    :sand 2
    :fungus 1
    :swamp 1})
 
 (lambda random-hex-gen [weights]
-  (var total 0)
-  (var gap-table {})
+  (var gap-table [])
   (each [k v (pairs weights)]
     (for [i 1 v]
-      (table.insert gap-table k))
-    (set total (+ total v)))
+      (table.insert gap-table k)))
   (lambda []
-    (. gap-table (math.random total))))
+    (. gap-table (math.random (length gap-table)))))
 
 (lambda mirror-hex [hex]
   (if (= :keep1 hex)

@@ -11,7 +11,45 @@
 (lambda hset [hexes [x y] value]
   (tset (. hexes y) x value))
 
-(lambda neighbors [{: width : height : on-map?} [x y]]
+(lambda generate-shape []
+  (let [width 28
+        height 16
+        on-map?
+          (lambda [[x y]]
+            (and (> y 0)
+                 (> x 0)
+                 (<= y height)
+                 (<= x width)))
+        hexes {}]
+    (for [y 1 height 1]
+      (tset hexes y {})
+      (for [x 1 width 1]
+        (hset hexes [x y]
+              (if (on-map? [x y]) :flat :off-map))))
+    {: width
+     : height
+     : on-map?
+     : hexes
+     :half?
+       (lambda [[x y]]
+         (and (> x 0)
+              (> y 0)
+              (<= y height)
+              (<= x (/ width 2))))
+     :inner?
+       (lambda [[x y]]
+         (and (> x 2)
+              (> y 2)
+              (<= y (- height 2))
+              (<= x (-> width (/ 2) (- 4)))))
+     :for-keep?
+       (lambda [[x y]]
+         (and (> x 2)
+              (> y 2)
+              (<= y (- height 2))
+              (<= x (/ width 4))))}))
+
+(lambda neighbors [{: on-map?} [x y]]
   (let [result []
         add (lambda [crd]
               (when (on-map? crd)
@@ -32,12 +70,6 @@
         (add [(- x 1) (- y 1)])))
     result))
 
-(lambda on-map? [{: width : height} [x y]]
-  (and (> y 0)
-       (> x 0)
-       (< y (+ height 1))
-       (< x (+ width 1))))
-
 (lambda to-string [{: width : height : hexes : on-map?} codes]
   (var result "")
   (let [add (lambda [val]
@@ -54,44 +86,30 @@
       (add "\n"))
     result))
 
-(lambda half-coords [{: width : height}]
-  (let [result {}]
+(lambda some-hexes [{: width : height &as map} key]
+  (let [result {}
+        criterium (. map key)]
     (for [y 1 height 1]
       (for [x 1 (/ width 2) 1]
-        (table.insert result [x y])))
-    (ipairs result)))
+        (when (criterium [x y])
+          (table.insert result [x y]))))
+    result))
 
 (lambda symmetric-crd [{: width : height} [x y]]
   [(-> width  (+ 1) (- x))
    (-> height (+ 1) (- y))])
 
-(lambda random-keep-crd [{: width : height}]
-  [(math.floor (math.random 2 (/ width 4)))
-   (math.floor (math.random 2 (/ height 2)))])
-
 (lambda generate-empty-map []
-  (let [width 28
-        height 16
-        hexes {}]
-    (for [y 1 height 1]
-      (tset hexes y {})
-      (for [x 1 width 1]
-        (tset (. hexes y) x :flat)))
-    (let [map {:width  width
-               :height height
-               :hexes  hexes}]
-      (set-methods map
-        on-map?
-        neighbors
-        half-coords
-        symmetric-crd
-        random-keep-crd
-        to-string)
-      map)))
+  (let [map (generate-shape)]
+    (set-methods map
+      neighbors
+      some-hexes
+      symmetric-crd
+      to-string)
+    map))
 
 {: hget
  : hset
  : neighbors
- : on-map?
  : generate-empty-map}
 

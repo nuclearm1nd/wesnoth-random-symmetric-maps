@@ -1,11 +1,13 @@
 .PHONY: test print lua deploy
 ADDON_DIR := ~/.local/share/wesnoth/1.16/data/add-ons/Random_Symmetric_Maps/
 SRCS := $(wildcard fnl/*.fnl)
-TST  := $(wildcard test/*_test.fnl)
+TST  := ./test
 OUTS := $(SRCS:fnl/%.fnl=lua/%.lua)
 
-test: $(TST)
-	fennel $?
+test: $(TST)/*
+	@for file in $^ ; do \
+	  fennel $${file} ; \
+	done
 
 lua-dir:
 	mkdir -pv lua/

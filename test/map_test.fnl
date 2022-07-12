@@ -1,4 +1,4 @@
-(local {: neighbors : off-map?} (require :../fnl/map))
+(local {: neighbors : on-map?} (require :../fnl/map))
 
 (set package.path (.. package.path ";.luamodules/share/lua/5.4/luaunit.lua"))
 (local lu (require :luaunit))
@@ -6,7 +6,7 @@
 (global testNeighbors
   (fn []
     (let [map {:height 5 :width 5}]
-      (tset map :off-map? (partial off-map? map))
+      (tset map :on-map? (partial on-map? map))
 
       (lu.assertEquals
         (neighbors map [2 2])

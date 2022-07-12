@@ -11,10 +11,8 @@
 (lambda hset [hexes [x y] value]
   (tset (. hexes y) x value))
 
-(lambda neighbors [{: width : height : off-map?} [x y]]
+(lambda neighbors [{: width : height : on-map?} [x y]]
   (let [result []
-        on-map? (lambda [crd]
-                  (not (off-map? crd)))
         add (lambda [crd]
               (when (on-map? crd)
                 (table.insert result crd)))]
@@ -34,21 +32,21 @@
         (add [(- x 1) (- y 1)])))
     result))
 
-(lambda off-map? [{: width : height} [x y]]
-  (or (<= y 0)
-      (<= x 0)
-      (>= y (+ height 1))
-      (>= x (+ width 1))))
+(lambda on-map? [{: width : height} [x y]]
+  (and (> y 0)
+       (> x 0)
+       (< y (+ height 1))
+       (< x (+ width 1))))
 
-(lambda to-string [{: width : height : hexes : off-map?} codes]
+(lambda to-string [{: width : height : hexes : on-map?} codes]
   (var result "")
   (for [y 0 (+ height 1) 1]
     (for [x 0 (+ width 1) 1]
-      (if (off-map? [x y])
-          (set result (.. result (. codes :off-map)))
+      (if (on-map? [x y])
           (set result
             (.. result
-                (. codes (hget hexes [x y])))))
+                (. codes (hget hexes [x y]))))
+          (set result (.. result (. codes :off-map))))
       (when (< x (+ width 1))
         (set result (.. result ", "))))
     (set result (.. result "\n")))
@@ -81,7 +79,7 @@
                :height height
                :hexes  hexes}]
       (set-methods map
-        off-map?
+        on-map?
         neighbors
         half-coords
         symmetric-crd
@@ -92,6 +90,6 @@
 {: hget
  : hset
  : neighbors
- : off-map?
+ : on-map?
  : generate-empty-map}
 

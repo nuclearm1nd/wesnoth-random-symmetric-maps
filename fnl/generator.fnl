@@ -33,14 +33,16 @@
     (hset hexes keep-crd :keep1)
     map))
 
-(lambda generate-map-string []
-  (let [{: map-to-string &as map} (generate-empty-map)]
-    (->
-      map
-      gen-half
-      place-keep
-      symmetrize-map
-      (map-to-string codes))))
+(lambda map-to-string [{: to-string} codes]
+  (to-string codes))
 
-{:generate generate-map-string}
+(lambda generate []
+  (->
+    (generate-empty-map)
+    gen-half
+    place-keep
+    symmetrize-map
+    (map-to-string codes)))
+
+{: generate}
 

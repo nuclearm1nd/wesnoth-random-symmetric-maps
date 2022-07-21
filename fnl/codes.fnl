@@ -7,7 +7,7 @@
    :ford "Wwf"
    :shallow-water "Ww"
    :sand "Ds"
-   :fungus "Uu^Tf"
+   :fungus "Gg^Tf"
    :swamp "Ss"
    :encampment "Ce"
    :keep1 "1 Ke"

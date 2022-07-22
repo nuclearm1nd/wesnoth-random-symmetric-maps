@@ -1,3 +1,13 @@
+(local {: filter} (wesnoth.require :util))
+
+(local {: check-factory
+        : line-constraint
+        : line-distance-constraint
+        : neighbors
+        : symmetric
+        : to-axial
+        : to-oddq} (wesnoth.require :coord))
+
 (macro set-methods [t ...]
   (let [result []]
     (each [_ m (ipairs [...])]
@@ -6,103 +16,104 @@
     `(do ,(table.unpack result))))
 
 (lambda hget [hexes [x y]]
-  (. (. hexes y) x))
+  (?. (?. hexes y) x))
 
 (lambda hset [hexes [x y] value]
   (tset (. hexes y) x value))
 
 (lambda generate-shape []
-  (let [width 28
-        height 16
+  (let [qmax 20
+        rmax 20
         on-map?
-          (lambda [[x y]]
-            (and (> y 0)
-                 (> x 0)
-                 (<= y height)
-                 (<= x width)))
+          (check-factory
+            [(line-constraint [:horizontal  18] :below)
+             (line-constraint [:horizontal -16] :above)
+             (line-constraint [:vertical   -16] :right)
+             (line-constraint [:vertical    16] :left)])
         hexes {}]
-    (for [y 1 height 1]
-      (tset hexes y {})
-      (for [x 1 width 1]
-        (hset hexes [x y]
-              (if (on-map? [x y]) :flat :off-map))))
-    {: width
-     : height
+    (for [r (- rmax) rmax 1]
+      (tset hexes r {})
+      (for [q (- qmax) qmax 1]
+        (hset hexes [q r]
+              (if (on-map? [q r]) :flat :off-map))))
+    {: qmax
+     : rmax
      : on-map?
      : hexes
      :half?
-       (lambda [[x y]]
-         (and (> x 0)
-              (> y 0)
-              (<= y height)
-              (<= x (/ width 2))))
+       (check-factory
+         [(line-constraint [:horizontal  18] :below)
+          (line-constraint [:horizontal -16] :above)
+          (line-constraint [:vertical   -16] :right)
+          (line-constraint [:vertical     0] :left)])
      :inner?
-       (lambda [[x y]]
-         (and (> x 2)
-              (> y 2)
-              (<= y (- height 2))
-              (<= x (-> width (/ 2) (- 4)))))
+       (check-factory
+         [(line-constraint [:horizontal  16] :below)
+          (line-constraint [:horizontal -14] :above)
+          (line-constraint [:vertical   -14] :right)
+          (line-constraint [:vertical   -4]  :left)])
      :for-keep?
-       (lambda [[x y]]
-         (and (> x 2)
-              (> y 2)
-              (<= y (- height 2))
-              (<= x (/ width 4))))}))
+       (check-factory
+         [(line-constraint [:horizontal  14] :below)
+          (line-constraint [:horizontal -12] :above)
+          (line-constraint [:vertical   -14] :right)
+          (line-constraint [:vertical    -7] :left)])}))
 
-(lambda neighbors [{: on-map?} [x y]]
-  (let [result []
-        add (lambda [crd]
-              (when (on-map? crd)
-                (table.insert result crd)))]
-    (add [x (- y 1)])
-    (add [x (+ y 1)])
+(lambda map-neighbors [{: on-map?} crd ?dist]
+  (let [dist (or ?dist 1)]
+    (->> (neighbors crd dist)
+         (filter on-map?))))
 
-    (if (= (% x 2) 0)
-      (do
-        (add [(+ x 1) y])
-        (add [(+ x 1) (+ y 1)])
-        (add [(- x 1) (+ y 1)])
-        (add [(- x 1) y]))
-      (do
-        (add [(+ x 1) (- y 1)])
-        (add [(+ x 1) y])
-        (add [(- x 1) y])
-        (add [(- x 1) (- y 1)])))
+(lambda some-hexes [{: qmax : rmax &as map} key]
+  (let [result {}
+        criterium (. map key)]
+    (for [r (- rmax) rmax 1]
+      (for [q (- qmax) qmax 1]
+        (when (criterium [q r])
+          (table.insert result [q r]))))
     result))
 
-(lambda to-string [{: width : height : hexes : on-map?} codes]
+(lambda symmetric-crd [_ crd]
+  (symmetric crd))
+
+(lambda oddq-bounds [map]
+  (var xmin 0)
+  (var xmax 0)
+  (var ymin 0)
+  (var ymax 0)
+  (each [_ v (pairs (some-hexes map :on-map?))]
+    (let [[x y] (to-oddq v)]
+      (if (< x xmin) (set xmin x))
+      (if (> x xmax) (set xmax x))
+      (if (< y ymin) (set ymin y))
+      (if (> y ymax) (set ymax y))))
+  [(- xmin 1)
+   (+ xmax 1)
+   (- ymin 1)
+   (+ ymax 1)])
+
+(lambda to-string [{: hexes : on-map? &as map} codes]
   (var result "")
-  (let [add (lambda [val]
+  (let [[xmin xmax ymin ymax] (oddq-bounds map)
+        add (lambda [val]
               (set result (.. result val)))
         get-code (lambda [crd]
-                   (if (on-map? crd)
-                     (. codes (hget hexes crd))
-                     (. codes :off-map)))]
-    (for [y 0 (+ height 1) 1]
-      (for [x 0 (+ width 1) 1]
-        (add (get-code [x y]))
-        (when (< x (+ width 1))
+                   (let [cd (hget hexes crd)]
+                     (if (and cd (on-map? crd))
+                       (. codes cd)
+                       (. codes :off-map))))]
+    (for [y ymin ymax 1]
+      (for [x xmin xmax 1]
+        (-> [x y] to-axial get-code add)
+        (when (< x xmax)
           (add ", ")))
       (add "\n"))
     result))
 
-(lambda some-hexes [{: width : height &as map} key]
-  (let [result {}
-        criterium (. map key)]
-    (for [y 1 height 1]
-      (for [x 1 (/ width 2) 1]
-        (when (criterium [x y])
-          (table.insert result [x y]))))
-    result))
-
-(lambda symmetric-crd [{: width : height} [x y]]
-  [(-> width  (+ 1) (- x))
-   (-> height (+ 1) (- y))])
-
 (lambda generate-empty-map []
   (let [map (generate-shape)]
     (set-methods map
-      neighbors
+      map-neighbors
       some-hexes
       symmetric-crd
       to-string)
@@ -110,6 +121,6 @@
 
 {: hget
  : hset
- : neighbors
+ : map-neighbors
  : generate-empty-map}
 

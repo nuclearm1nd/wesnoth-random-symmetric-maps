@@ -30,19 +30,19 @@
       (hset hexes crd (random-hex)))
   map))
 
-(lambda place-villages [{: hexes : some-hexes : neighbors &as map}]
+(lambda place-villages [{: hexes : some-hexes : map-neighbors &as map}]
   (var available-hexes (some-hexes :inner?))
   (for [i 1 5 1]
     (let [crd (draw-random available-hexes)
-          occupied (neighbors crd)]
+          occupied (map-neighbors crd)]
       (table.insert occupied crd)
       (hset hexes crd :village)
       (set available-hexes (difference available-hexes occupied))))
   map)
 
-(lambda place-keep [{: hexes : some-hexes : neighbors &as map}]
+(lambda place-keep [{: hexes : some-hexes : map-neighbors &as map}]
   (let [keep-crd (draw-random (some-hexes :for-keep?))
-        nhbrs (neighbors keep-crd)]
+        nhbrs (map-neighbors keep-crd)]
     (each [_ crd (ipairs nhbrs)]
       (hset hexes crd :encampment))
     (hset hexes keep-crd :keep1)

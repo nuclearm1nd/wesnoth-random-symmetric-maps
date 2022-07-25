@@ -14,7 +14,9 @@
         : distance
         : neighbors
         : zone
-        : line-distance} (require :../fnl/coord))
+        : line-distance
+        : line-constraint
+        } (require :../fnl/coord))
 
 (set package.path (.. package.path ";.luamodules/share/lua/5.4/luaunit.lua"))
 (local lu (require :luaunit))
@@ -244,25 +246,154 @@
     (line-distance [:horizontal 1] [0 3])
     3
 
-    (line-distance [:horizontal 1] [1 3])
+    (line-distance [:- 1] [1 3])
     2
 
-    (line-distance [:horizontal -3] [2 4])
+    (line-distance [:- -3] [2 4])
     5
 
-    (line-distance [:horizontal 4] [-1 -2])
+    (line-distance [:- 4] [-1 -2])
     -4
 
-    (line-distance [:horizontal 3] [4 2])
+    (line-distance [:- 3] [4 2])
     -2
 
-    (line-distance [:horizontal 2] [4 2])
+    (line-distance [:- 2] [4 2])
     -1
 
-    (line-distance [:horizontal -5] [4 5])
+    (line-distance [:- -5] [4 5])
     6
 
+    (line-distance [:vertical 0] [0 0])
+    0
+
+    (line-distance [:| 0] [0 5])
+    0
+
+    (line-distance [:| 0] [3 5])
+    3
+
+    (line-distance [:| 0] [-3 -2])
+    -3
+
+    (line-distance [:incline-right 0] [0 0])
+    0
+
+    (line-distance [:/ 0] [3 1])
+    1
+
+    (line-distance [:/ 0] [-2 1])
+    1
+
+    (line-distance [:/ 0] [-2 -3])
+    -3
+
+    (line-distance [:/ -2] [3 4])
+    6
+
+    (line-distance [:/ -2] [3 -4])
+    -2
+
+    (line-distance [:incline-left 0] [0 0])
+    0
+
+    (line-distance [:incline-left 0] [-2 0])
+    -2
+
+    (line-distance [:\ 2] [4 1])
+    1
+
   ))
+
+(test LineConstraint
+  (let [constraint (line-constraint [:- -1] :below)]
+    (to-test-pairs lu.assertEquals
+      (constraint [0 0])
+      true
+
+      (constraint [1 0])
+      false
+
+      (constraint [5 3])
+      true
+
+      (constraint [5 2])
+      false))
+
+  (let [constraint (line-constraint [:| -1] :right)]
+    (to-test-pairs lu.assertEquals
+      (constraint [0 0])
+      true
+
+      (constraint [1 0])
+      true
+
+      (constraint [-2 3])
+      false
+
+      (constraint [-1 -5])
+      false))
+
+  (let [constraint (line-constraint [:/ 1] :below)]
+    (to-test-pairs lu.assertEquals
+      (constraint [0 0])
+      false
+
+      (constraint [1 0])
+      false
+
+      (constraint [-2 3])
+      true
+
+      (constraint [-4 1])
+      false))
+
+  (let [constraint (line-constraint [:/ 1] :right)]
+    (to-test-pairs lu.assertEquals
+      (constraint [0 0])
+      false
+
+      (constraint [1 0])
+      false
+
+      (constraint [-2 3])
+      true
+
+      (constraint [-4 1])
+      false))
+
+  (let [constraint (line-constraint [:\ 1] :right)]
+    (to-test-pairs lu.assertEquals
+      (constraint [0 0])
+      false
+
+      (constraint [4 2])
+      true
+
+      (constraint [4 3])
+      false))
+
+  (let [constraint (line-constraint [:\ 1] :below)]
+    (to-test-pairs lu.assertEquals
+      (constraint [0 0])
+      true
+
+      (constraint [4 2])
+      false
+
+      (constraint [4 3])
+      false
+
+      (constraint [4 4])
+      true
+      ))
+
+  (lu.assertError #(line-constraint [:- 0] :right))
+  (lu.assertError #(line-constraint [:horizontal 0] :left))
+
+  (lu.assertError #(line-constraint [:vertical 0] :below))
+  (lu.assertError #(line-constraint [:| 0] :above))
+  )
 
 (os.exit (lu.LuaUnit.run))
 

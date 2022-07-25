@@ -6,6 +6,12 @@
           (table.insert result m)))
     `(if ,(table.unpack result))))
 
+(macro or= [v ...]
+  (let [result []]
+    (each [_ m (ipairs [...])]
+      (table.insert result `(= ,v ,m)))
+    `(or ,(table.unpack result))))
+
 (lambda sign [x]
   (if (= 0 x) 0
       (> 0 x) -1
@@ -99,26 +105,54 @@
       (<= dist max-dist))))
 
 (lambda line-distance [[line-type constant] [q r]]
-  (if= line-type
-    :horizontal
+  (if
+    (or= line-type :horizontal :-)
       (let [x (- (* 2 r) q constant)]
         (* (sign x)
            (-> (math.abs x) (+ 1) (// 2))))
-    :vertical (- q constant)
-    :incline-right (- r constant)
-    :incline-left (- q r constant)))
+
+    (or= line-type :vertical :|)
+      (- q constant)
+
+    (or= line-type :incline-right :/)
+      (- r constant)
+
+    (or= line-type :incline-left :\)
+      (- q r constant)))
 
 (lambda line-distance-constraint [line-def dist-fn]
   (lambda [crd]
     (dist-fn (line-distance line-def crd))))
 
-(lambda line-constraint [line-def direction]
-  (let [gen (partial line-distance-constraint line-def)]
+(lambda line-constraint [[line-type constant] direction]
+  (let [gen (partial line-distance-constraint [line-type constant])
+        err #(error
+               (string.format "invalid line-type/distance combo %s %s"
+                              line-type
+                              direction))]
     (if= direction
-         :below (gen #(> $1 0))
-         :above (gen #(< $1 0))
-         :right (gen #(> $1 0))
-         :left  (gen #(< $1 0)))))
+         :+ (gen #(> $1 0))
+         :- (gen #(< $1 0))
+         :below (if (or= line-type :incline-left :\)
+                      (gen #(< $1 0))
+                    (or= line-type :incline-right :/ :horizontal :-)
+                      (gen #(> $1 0))
+                    (err))
+         :above (if (or= line-type :\ :incline-left)
+                      (gen #(> $1 0))
+                    (or= line-type :incline-right :/ :horizontal :-)
+                      (gen #(< $1 0))
+                    (err))
+         :right (if (or= line-type :vertical :|
+                                   :incline-left :\
+                                   :incline-right :/)
+                      (gen #(> $1 0))
+                      (err))
+         :left  (if (or= line-type :vertical :|
+                                   :incline-left :\
+                                   :incline-right :/)
+                      (gen #(< $1 0))
+                      (err)))))
 
 (lambda check-factory [fns]
   (lambda [crd]

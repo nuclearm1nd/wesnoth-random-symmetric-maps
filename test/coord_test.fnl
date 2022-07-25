@@ -16,6 +16,7 @@
         : zone
         : line-distance
         : line-constraint
+        : check-factory
         } (require :../fnl/coord))
 
 (set package.path (.. package.path ";.luamodules/share/lua/5.4/luaunit.lua"))
@@ -394,6 +395,38 @@
   (lu.assertError #(line-constraint [:vertical 0] :below))
   (lu.assertError #(line-constraint [:| 0] :above))
   )
+
+(test AreaContraint
+  (let [constraint
+          (check-factory
+            [(line-constraint [:-  0] :+)
+             (line-constraint [:- 11] :-)
+             (line-constraint [:|  0] :+)
+             (line-constraint [:|  6] :-)])]
+    (to-test-pairs lu.assertEquals
+      (constraint [1 1])
+      true
+
+      (constraint [5 3])
+      true
+
+      (constraint [5 7])
+      true
+
+      (constraint [1 5])
+      true
+
+      (constraint [0 1])
+      false
+
+      (constraint [6 3])
+      false
+
+      (constraint [5 8])
+      false
+
+      (constraint [1 6])
+      false)))
 
 (os.exit (lu.LuaUnit.run))
 

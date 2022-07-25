@@ -48,8 +48,18 @@
         x (- q q0)]
     [x (- r r0 (// x 2))]))
 
-(lambda symmetric [[q r]]
-  [(- q) (- r)])
+(lambda to-new-origin [[q r] [qo ro]]
+  [(- q qo)
+   (- r ro)])
+
+(lambda symmetric [[q r] ?origin]
+  (if (not ?origin)
+      [(- q) (- r)]
+      (let [[qo ro] ?origin]
+        (-> [q r]
+            (to-new-origin [qo ro])
+            symmetric
+            (to-new-origin [(- qo) (- ro)])))))
 
 (lambda distance [[q0 r0] ?crd1]
   (let [[q1 r1] (or ?crd1 [0 0])
@@ -115,6 +125,7 @@
  : difference
  : to-oddq
  : to-axial
+ : to-new-origin
  : symmetric
  : distance
  : neighbors

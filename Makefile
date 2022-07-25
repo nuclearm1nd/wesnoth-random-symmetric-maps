@@ -4,7 +4,7 @@ SRCS := $(wildcard fnl/*.fnl)
 TST  := ./test
 OUTS := $(SRCS:fnl/%.fnl=lua/%.lua)
 
-test: $(TST)/*
+test: $(TST)/*_test.fnl
 	@for file in $^ ; do \
 	  fennel $${file} ; \
 	done

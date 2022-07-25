@@ -12,7 +12,9 @@
         : check-factory
         : line-constraint} (require :../fnl/coord))
 
-(local {: map-neighbors} (require :../fnl/map))
+(local {: map-neighbors
+        : generate-empty-map
+        : oddq-bounds} (require :../fnl/map))
 
 (set package.path (.. package.path ";.luamodules/share/lua/5.4/luaunit.lua"))
 (local lu (require :luaunit))
@@ -52,6 +54,11 @@
       [4 1]
       [[4 2] [5 1] [5 2] [3 2] [3 1]])
     ))
+
+(test Bounds
+  (lu.assertEquals
+    (oddq-bounds (generate-empty-map))
+    [0 33 0 17]))
 
 (os.exit (lu.LuaUnit.run))
 

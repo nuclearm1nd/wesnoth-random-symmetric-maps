@@ -6,6 +6,11 @@
           (table.insert result m)))
     `(if ,(table.unpack result))))
 
+(lambda sign [x]
+  (if (= 0 x) 0
+      (> 0 x) -1
+      1))
+
 (local coord-meta
   {"__eq" (fn [[x1 y1] [x2 y2]]
             (and (= x1 x2)
@@ -95,7 +100,10 @@
 
 (lambda line-distance [[line-type constant] [q r]]
   (if= line-type
-    :horizontal (-> q (- (* 2 r) constant) (// 2) (+ 1))
+    :horizontal
+      (let [x (- (* 2 r) q constant)]
+        (* (sign x)
+           (-> (math.abs x) (+ 1) (// 2))))
     :vertical (- q constant)
     :incline-right (- r constant)
     :incline-left (- q r constant)))
@@ -107,8 +115,8 @@
 (lambda line-constraint [line-def direction]
   (let [gen (partial line-distance-constraint line-def)]
     (if= direction
-         :below (gen #(< $1 0))
-         :above (gen #(> $1 0))
+         :below (gen #(> $1 0))
+         :above (gen #(< $1 0))
          :right (gen #(> $1 0))
          :left  (gen #(< $1 0)))))
 

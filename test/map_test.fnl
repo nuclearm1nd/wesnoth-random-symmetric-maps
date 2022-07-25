@@ -21,8 +21,8 @@
   (let [map
           {:on-map?
             (check-factory
-              [(line-constraint [:horizontal 2] :below)
-               (line-constraint [:horizontal -10] :above)
+              [(line-constraint [:horizontal 0] :below)
+               (line-constraint [:horizontal 11] :above)
                (line-constraint [:vertical 0] :right)
                (line-constraint [:vertical 6] :left)])}
         test-fn

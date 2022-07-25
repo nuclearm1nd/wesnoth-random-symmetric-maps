@@ -13,7 +13,8 @@
         : to-new-origin
         : distance
         : neighbors
-        : zone} (require :../fnl/coord))
+        : zone
+        : line-distance} (require :../fnl/coord))
 
 (set package.path (.. package.path ";.luamodules/share/lua/5.4/luaunit.lua"))
 (local lu (require :luaunit))
@@ -212,6 +213,56 @@
      [3 3]
      [3 4]]
 ))
+
+(test LineDistance
+  (to-test-pairs lu.assertEquals
+
+    (line-distance [:horizontal 0] [0 0])
+    0
+
+    (line-distance [:horizontal 0] [2 1])
+    0
+
+    (line-distance [:horizontal 0] [4 2])
+    0
+
+    (line-distance [:horizontal 0] [3 2])
+    1
+
+    (line-distance [:horizontal 1] [1 1])
+    0
+
+    (line-distance [:horizontal 1] [-1 0])
+    0
+
+    (line-distance [:horizontal 1] [-3 -1])
+    0
+
+    (line-distance [:horizontal 1] [0 0])
+    -1
+
+    (line-distance [:horizontal 1] [0 3])
+    3
+
+    (line-distance [:horizontal 1] [1 3])
+    2
+
+    (line-distance [:horizontal -3] [2 4])
+    5
+
+    (line-distance [:horizontal 4] [-1 -2])
+    -4
+
+    (line-distance [:horizontal 3] [4 2])
+    -2
+
+    (line-distance [:horizontal 2] [4 2])
+    -1
+
+    (line-distance [:horizontal -5] [4 5])
+    6
+
+  ))
 
 (os.exit (lu.LuaUnit.run))
 

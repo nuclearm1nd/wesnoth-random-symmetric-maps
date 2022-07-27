@@ -5,16 +5,19 @@
   {:require (lambda [str]
               (require (.. "../fnl/" str)))})
 
-(local {: mapv} (require :../fnl/util))
+(local {: mapv
+        } (require :../fnl/util))
 
 (local {: to-axial
         : to-oddq
-        : check-factory
-        : line-constraint} (require :../fnl/coord))
+        : line-constraint
+        : line-area
+        } (require :../fnl/coord))
 
 (local {: map-neighbors
         : generate-empty-map
-        : oddq-bounds} (require :../fnl/map))
+        : oddq-bounds
+        } (require :../fnl/map))
 
 (set package.path (.. package.path ";.luamodules/share/lua/5.4/luaunit.lua"))
 (local lu (require :luaunit))
@@ -22,11 +25,11 @@
 (test Neighbors
   (let [map
           {:on-map?
-            (check-factory
-              [(line-constraint [:horizontal 0] :below)
-               (line-constraint [:horizontal 11] :above)
-               (line-constraint [:vertical 0] :right)
-               (line-constraint [:vertical 6] :left)])}
+            (line-area
+              [:below :horizontal 0
+               :above :horizontal 11
+               :right :vertical   0
+               :left  :vertical   6 ])}
         test-fn
           (lambda [crd result]
             (lu.assertItemsEquals

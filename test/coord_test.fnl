@@ -1,5 +1,7 @@
-(import-macros {: test
-                : to-test-pairs} "../test/util")
+(import-macros
+  {: test
+   : to-test-pairs
+   } "../test/util")
 
 (global wesnoth
   {:require (lambda [str]
@@ -16,7 +18,8 @@
         : zone
         : line-distance
         : line-constraint
-        : check-factory
+        : line-area
+        : line-area-border
         } (require :../fnl/coord))
 
 (set package.path (.. package.path ";.luamodules/share/lua/5.4/luaunit.lua"))
@@ -401,11 +404,11 @@
 
 (test AreaContraint
   (let [constraint
-          (check-factory
-            [(line-constraint [:-  0] :+)
-             (line-constraint [:- 11] :-)
-             (line-constraint [:|  0] :+)
-             (line-constraint [:|  6] :-)])]
+          (line-area
+            [:+ :-  0
+             :- :- 11
+             :+ :|  0
+             :- :|  6 ])]
     (to-test-pairs lu.assertEquals
       (constraint [1 1])
       true
@@ -430,6 +433,40 @@
 
       (constraint [1 6])
       false)))
+
+(test LineAreaBorderContraint
+  (let [constraint
+          (line-area-border
+            [:+ :-  0
+             :- :- 11
+             :+ :|  0
+             :- :|  6])]
+    (to-test-pairs lu.assertEquals
+      (constraint [0 0])
+      true
+
+      (constraint [0 1])
+      true
+
+      (constraint [1 0])
+      false
+
+      (constraint [4 2])
+      true
+
+      (constraint [1 1])
+      false
+
+      (constraint [6 3])
+      true
+
+      (constraint [5 8])
+      true
+
+      (constraint [1 6])
+      true
+    )))
+
 
 (os.exit (lu.LuaUnit.run))
 

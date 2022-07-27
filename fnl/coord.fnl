@@ -1,3 +1,8 @@
+(local {: mapv
+        : partition
+        : f-and
+        } (wesnoth.require :util))
+
 (macro if= [v ...]
   (let [result []]
     (each [i m (ipairs [...])]
@@ -124,44 +129,54 @@
   (lambda [crd]
     (dist-fn (line-distance line-def crd))))
 
-(lambda line-constraint [[line-type constant] direction]
-  (let [gen (partial line-distance-constraint [line-type constant])
+(lambda line-constraint [[line-type constant] direction ?inclusive]
+  (let [inclusive (or false ?inclusive)
+        gt0 (if inclusive #(>= $1 0) #(> $1 0))
+        lt0 (if inclusive #(<= $1 0) #(< $1 0))
+        gen (partial line-distance-constraint [line-type constant])
         err #(error
                (string.format "invalid line-type/distance combo %s %s"
                               line-type
                               direction))]
     (if= direction
-         :+ (gen #(> $1 0))
-         :- (gen #(< $1 0))
+         :on (gen #(= $1 0))
+         :+ (gen gt0)
+         :- (gen lt0)
          :below (if (or= line-type :incline-left :\)
-                      (gen #(< $1 0))
+                      (gen lt0)
                     (or= line-type :incline-right :/ :horizontal :-)
-                      (gen #(> $1 0))
+                      (gen gt0)
                     (err))
          :above (if (or= line-type :\ :incline-left)
-                      (gen #(> $1 0))
+                      (gen gt0)
                     (or= line-type :incline-right :/ :horizontal :-)
-                      (gen #(< $1 0))
+                      (gen lt0)
                     (err))
          :right (if (or= line-type :vertical :|
                                    :incline-left :\
                                    :incline-right :/)
-                      (gen #(> $1 0))
+                      (gen gt0)
                       (err))
          :left  (if (or= line-type :vertical :|
                                    :incline-left :\
                                    :incline-right :/)
-                      (gen #(< $1 0))
+                      (gen lt0)
                       (err)))))
 
-(lambda check-factory [fns]
-  (lambda [crd]
-    (var i 1)
-    (var inside true)
-    (while (and inside (<= i (length fns)))
-      (set inside ((. fns i) crd))
-      (set i (+ 1 i)))
-    inside))
+(lambda line-area [line-defs ?inclusive]
+  (->> line-defs
+       (partition 3)
+       (mapv
+         (lambda [[directon line-type constant]]
+           (line-constraint [line-type constant] directon ?inclusive)))
+       f-and))
+
+(lambda line-area-border [line-defs]
+  (let [including (line-area line-defs true)
+        excluding (line-area line-defs false)]
+    (lambda [crd]
+      (and (including crd)
+           (not (excluding crd))))))
 
 {: union
  : difference
@@ -175,5 +190,7 @@
  : line-distance
  : line-distance-constraint
  : line-constraint
- : check-factory}
+ : line-area
+ : line-area-border
+}
 

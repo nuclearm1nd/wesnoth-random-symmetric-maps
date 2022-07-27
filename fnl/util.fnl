@@ -61,6 +61,12 @@
       (set i (+ 1 i))))
   result)
 
+(lambda reverse [arr]
+  (let [result []]
+    (each [_ v (ipairs arr)]
+      (table.insert result 1 v))
+  result))
+
 {: filter
  : mapv
  : partition
@@ -68,5 +74,6 @@
  : f-and
  : any?
  : first
+ : reverse
  }
 

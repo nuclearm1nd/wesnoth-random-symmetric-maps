@@ -18,6 +18,12 @@
         : mirror-hex
         } (wesnoth.require :codes))
 
+(macro <<- [...]
+  (let [items []]
+    (each [_ v (ipairs [...])]
+      (table.insert items 1 v))
+    `(->> ,(table.unpack items))))
+
 (lambda draw-random [t]
   (. t (math.random (length t))))
 
@@ -70,33 +76,34 @@
   (var finished false)
   (var crd initial-crd)
   (var exclude-list [crd])
-  (while (not finished)
-    (let [hex (hget hexes crd)]
-      (if (= :cobbles hex)
-        (set finished true)
-        (do
-          (when (= :flat hex)
-            (hset hexes crd :cobbles))
-          (let [dist (distance crd destination-crd)]
-            (if (<= dist 1)
-              (set finished true)
-              (let [nhbrs (difference
-                            (->> (map-neighbors crd)
-                                 (filter half?))
-                            exclude-list)
-                    rndt []]
-                (if (= 0 (length nhbrs))
-                  (set finished true)
-                  (do
-                    (each [_ new-crd (ipairs nhbrs)]
-                      (let [new-dist (distance new-crd destination-crd)
-                            cnt (if (< new-dist dist) 9
-                                    (= new-dist dist) 3
-                                    1)]
-                        (for [i 1 cnt 1]
-                          (table.insert rndt new-crd))))
-                    (set crd (draw-random rndt))
-                    (set exclude-list (union exclude-list nhbrs))))))))))))
+  (<<-
+    (while (not finished))
+    (let [hex (hget hexes crd)])
+    (if (= :cobbles hex)
+      (set finished true))
+    (do
+      (when (= :flat hex)
+        (hset hexes crd :cobbles)))
+    (let [dist (distance crd destination-crd)])
+    (if (<= dist 1)
+      (set finished true))
+    (let [nhbrs (difference
+                  (->> (map-neighbors crd)
+                       (filter half?))
+                  exclude-list)
+          rndt []])
+    (if (= 0 (length nhbrs))
+      (set finished true))
+    (do
+      (each [_ new-crd (ipairs nhbrs)]
+        (let [new-dist (distance new-crd destination-crd)
+              cnt (if (< new-dist dist) 9
+                      (= new-dist dist) 3
+                      1)]
+          (for [i 1 cnt 1]
+            (table.insert rndt new-crd))))
+      (set crd (draw-random rndt))
+      (set exclude-list (union exclude-list nhbrs)))))
 
 (lambda pave-roads [{: hexes : some-hexes : symmetric-crd &as map}]
   (let [keep-crd (->> (some-hexes :half?)

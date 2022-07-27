@@ -1,8 +1,10 @@
 (local {: filter
+        : f-or
         } (wesnoth.require :util))
 
 (local {: line-constraint
         : line-distance-constraint
+        : line-segment-constraint
         : neighbors
         : symmetric
         : to-axial
@@ -49,12 +51,17 @@
      : on-map?
      : hexes
      :half?
-       (line-area
-         [:below :- -6
-          :right :| 0
-          :below :/ 0
-          :above :/ (// rmax 2)
-          :below :\ (// qmax 2)])
+       (f-or
+         [(line-area
+            [:below :- -6
+             :right :| 0
+             :below :/ 0
+             :above :/ (// rmax 2)
+             :below :\ (// qmax 2)])
+          (line-segment-constraint
+            [:/ (// rmax 2)]
+            (fn [[q _]] (and (> q 0)
+                             (<= q (/ qmax 2)))))])
      :inner?
        (line-area
          [:below :- -4

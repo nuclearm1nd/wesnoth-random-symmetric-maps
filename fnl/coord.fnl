@@ -1,6 +1,7 @@
 (local {: mapv
         : partition
         : f-and
+        : f-or
         } (wesnoth.require :util))
 
 (macro if= [v ...]
@@ -21,11 +22,6 @@
   (if (= 0 x) 0
       (> 0 x) -1
       1))
-
-(local coord-meta
-  {"__eq" (fn [[x1 y1] [x2 y2]]
-            (and (= x1 x2)
-                 (= y1 y2)))})
 
 (lambda to-set [coord-array]
   (let [result {}]
@@ -163,6 +159,11 @@
                       (gen lt0)
                       (err)))))
 
+(lambda line-segment-constraint [line-def crd-constraint]
+  (f-or
+    [(line-constraint line-def :on)
+     crd-constraint]))
+
 (lambda line-area [line-defs ?inclusive]
   (->> line-defs
        (partition 3)
@@ -189,6 +190,7 @@
  : zone
  : line-distance
  : line-distance-constraint
+ : line-segment-constraint
  : line-constraint
  : line-area
  : line-area-border

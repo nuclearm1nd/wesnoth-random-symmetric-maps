@@ -22,14 +22,18 @@
   (tset (. hexes y) x value))
 
 (lambda generate-shape []
-  (let [qmax 34
-        rmax 34
+  (let [qmax 38
+        rmax 38
         on-map?
           (check-factory
-            [(line-constraint [:horizontal  0] :below)
-             (line-constraint [:horizontal 33] :above)
-             (line-constraint [:vertical    0] :right)
-             (line-constraint [:vertical   33] :left)])
+            [(line-constraint [:-          -6] :below)
+             (line-constraint [:-  (+ 6 rmax)] :above)
+             (line-constraint [:|           0] :right)
+             (line-constraint [:|        qmax] :left)
+             (line-constraint [:/           0] :below)
+             (line-constraint [:/        rmax] :above)
+             (line-constraint [:\ (// qmax 2)] :below)
+             (line-constraint [:\ (- (// rmax 2))] :above)])
         hexes {}]
     (for [r 0 rmax 1]
       (tset hexes r {})
@@ -42,22 +46,25 @@
      : hexes
      :half?
        (check-factory
-         [(line-constraint [:horizontal  0] :below)
-          (line-constraint [:horizontal 33] :above)
-          (line-constraint [:vertical    0] :right)
-          (line-constraint [:vertical   17] :left)])
+         [(line-constraint [:- -6] :below)
+          (line-constraint [:|  0] :right)
+          (line-constraint [:/  0] :below)
+          (line-constraint [:/ (// rmax 2)] :above)
+          (line-constraint [:\ (// qmax 2)] :below)])
      :inner?
        (check-factory
-         [(line-constraint [:horizontal  4] :below)
-          (line-constraint [:horizontal 29] :above)
-          (line-constraint [:vertical    2] :right)
-          (line-constraint [:vertical   13] :left)])
+         [(line-constraint [:- -4] :below)
+          (line-constraint [:|  2] :right)
+          (line-constraint [:/  2] :below)
+          (line-constraint [:/ (-> rmax (// 2) (- 4))] :above)
+          (line-constraint [:\ (-> qmax (// 2) (- 2))] :below)])
      :for-keep?
        (check-factory
-         [(line-constraint [:horizontal  6] :below)
-          (line-constraint [:horizontal 27] :above)
-          (line-constraint [:vertical    3] :right)
-          (line-constraint [:vertical    8] :left)])}))
+         [(line-constraint [:- -2] :below)
+          (line-constraint [:|  4] :right)
+          (line-constraint [:/  4] :below)
+          (line-constraint [:/ (// rmax 4)] :above)
+          (line-constraint [:\ (-> qmax (// 2) (- 4))] :below)])}))
 
 (lambda map-neighbors [{: on-map?} crd ?dist]
   (let [dist (or ?dist 1)]
@@ -73,8 +80,8 @@
           (table.insert result [q r]))))
     result))
 
-(lambda symmetric-crd [_ crd]
-  (symmetric crd [16.5 16.5]))
+(lambda symmetric-crd [{: qmax : rmax} crd]
+  (symmetric crd [(/ qmax 2) (/ rmax 2)]))
 
 (lambda oddq-bounds [map]
   (var xmin 1)

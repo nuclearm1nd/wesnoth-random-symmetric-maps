@@ -55,10 +55,10 @@
       [[4 2] [5 1] [5 2] [3 2] [3 1]])
     ))
 
-(test Bounds
-  (lu.assertEquals
-    (oddq-bounds (generate-empty-map))
-    [0 33 0 17]))
+;;(test Bounds
+;;  (lu.assertEquals
+;;    (oddq-bounds (generate-empty-map))
+;;    [0 33 0 17]))
 
 (os.exit (lu.LuaUnit.run))
 

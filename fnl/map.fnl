@@ -62,6 +62,11 @@
             [:/ (// rmax 2)]
             (fn [[q _]] (and (> q 0)
                              (<= q (/ qmax 2)))))])
+     :road-origin?
+       (line-segment-constraint
+            [:/ (// rmax 2)]
+            (fn [[q _]] (and (> q 5)
+                             (<= q (-> qmax (/ 2) (- 3))))))
      :inner?
        (line-area
          [:below :- -4

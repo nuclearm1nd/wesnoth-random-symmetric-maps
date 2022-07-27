@@ -160,7 +160,7 @@
                       (err)))))
 
 (lambda line-segment-constraint [line-def crd-constraint]
-  (f-or
+  (f-and
     [(line-constraint line-def :on)
      crd-constraint]))
 

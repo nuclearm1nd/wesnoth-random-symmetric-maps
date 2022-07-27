@@ -41,9 +41,32 @@
       (set i (+ 1 i)))
     flag))
 
+(lambda any? [func arr]
+  (var result false)
+  (var i 1)
+  (while (and (not result)
+              (<= i (length arr)))
+    (set result (func (. arr i)))
+    (set i (+ 1 i)))
+  result)
+
+(lambda first [func arr]
+  (var result nil)
+  (var i 1)
+  (while (and (not result)
+              (<= i (length arr)))
+    (let [item (. arr i)]
+      (when (func item)
+        (set result item))
+      (set i (+ 1 i))))
+  result)
+
 {: filter
  : mapv
  : partition
  : f-or
- : f-and}
+ : f-and
+ : any?
+ : first
+ }
 

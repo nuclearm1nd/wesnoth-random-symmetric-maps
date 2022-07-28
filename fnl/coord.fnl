@@ -128,15 +128,15 @@
 
 (lambda line-constraint [[line-type constant] direction ?inclusive]
   (let [inclusive (or false ?inclusive)
-        gt0 (if inclusive #(>= $1 0) #(> $1 0))
-        lt0 (if inclusive #(<= $1 0) #(< $1 0))
+        gt0 (if inclusive #(>= $ 0) #(> $ 0))
+        lt0 (if inclusive #(<= $ 0) #(< $ 0))
         gen (partial line-distance-constraint [line-type constant])
         err #(error
                (string.format "invalid line-type/distance combo %s %s"
                               line-type
                               direction))]
     (if= direction
-         :on (gen #(= $1 0))
+         :on (gen #(= $ 0))
          :+ (gen gt0)
          :- (gen lt0)
          :below (if (or= line-type :incline-left :\)
@@ -192,6 +192,10 @@
          (round (+ r0 (* i rstep)))]))
     result))
 
+(lambda midpoint [[q0 r0] [q1 r1]]
+  [(-> (+ q0 q1) (/ 2) round)
+   (-> (+ r0 r1) (/ 2) round)])
+
 {: union
  : difference
  : to-oddq
@@ -208,5 +212,6 @@
  : line-area
  : line-area-border
  : connecting-line
+ : midpoint
 }
 

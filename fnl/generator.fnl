@@ -1,11 +1,14 @@
 (local {: filter
         : first
+        : couples
         } (wesnoth.require :util))
 
 (local {: difference
         : union
         : distance
         : zone
+        : connecting-line
+        : midpoint
         } (wesnoth.require :coord))
 
 (local {: hget
@@ -43,13 +46,13 @@
 (lambda gen-half [{: hexes : some-hexes &as map}]
   (let [random-hex (random-hex-gen random-landscape-weights)]
     (each [_ crd (ipairs (->> (some-hexes :half?)
-                              (filter #(= :flat (hget hexes $1)))))]
+                              (filter #(= :flat (hget hexes $)))))]
       (hset hexes crd (random-hex)))
   map))
 
 (lambda place-villages [{: hexes : some-hexes : map-neighbors &as map}]
   (var available-hexes (->> (some-hexes :inner?)
-                            (filter #(= :flat (hget hexes $1)))))
+                            (filter #(= :flat (hget hexes $)))))
   (for [i 1 8 1]
     (let [crd (draw-random available-hexes)
           occupied (zone crd 2)]
@@ -66,7 +69,7 @@
     (hset hexes keep-crd :keep1)
     map))
 
-(lambda pave-road
+(lambda pave-road-search
   [{: hexes
     : some-hexes
     : map-neighbors
@@ -106,14 +109,47 @@
       (set crd (draw-random rndt))
       (set exclude-list (union exclude-list nhbrs)))))
 
+(lambda pave-road-straight
+  [{: hexes &as map}
+   destination-crd
+   initial-crd]
+  (each [_ crd (ipairs (connecting-line initial-crd destination-crd))]
+    (when (= :flat (hget hexes crd))
+      (hset hexes crd :cobbles))))
+
+(lambda pave-road-midpoint-displacement
+  [{: hexes
+    : map-neighbors
+    : half?
+    &as map}
+   destination-crd
+   initial-crd]
+  (var points [initial-crd destination-crd])
+  (for [i 1 3 1]
+    (let [acc [(. points 1)]
+          add #(table.insert acc $)]
+      (each [_ [crd1 crd2] (ipairs (couples points))]
+        (let [mid (midpoint crd1 crd2)
+              displaced
+                (draw-random
+                  (difference
+                    (filter half?
+                            (map-neighbors mid (- 5 i)))
+                    (connecting-line crd1 crd2)))]
+          (add displaced)
+          (add crd2)))
+      (set points acc)))
+  (each [_ [crd1 crd2] (ipairs (couples points))]
+    (pave-road-straight map crd1 crd2)))
+
 (lambda pave-roads [{: hexes : some-hexes : symmetric-crd &as map}]
   (let [keep-crd (->> (some-hexes :half?)
-                      (first #(= :keep1 (hget hexes $1))))
+                      (first #(= :keep1 (hget hexes $))))
         road-origin1 (->> (some-hexes :road-origin?)
                           draw-random)
         road-origin2 (symmetric-crd road-origin1)]
-    (pave-road map keep-crd road-origin1)
-    (pave-road map keep-crd road-origin2)
+    (pave-road-midpoint-displacement map keep-crd road-origin2)
+    (pave-road-search map keep-crd road-origin1)
     map))
 
 (lambda map-to-string [{: to-string} codes]

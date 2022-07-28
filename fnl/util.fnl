@@ -75,6 +75,17 @@
       fl
       cl)))
 
+(lambda couples [arr]
+  (assert (<= 2 (length arr)))
+  (var i 1)
+  (let [result []
+        get #(. arr $)
+        add #(table.insert result $)]
+    (while (<= (+ 1 i) (length arr))
+      (add [(get i) (get (+ 1 i))])
+      (set i (+ 1 i)))
+    result))
+
 {: filter
  : mapv
  : partition
@@ -84,5 +95,6 @@
  : first
  : reverse
  : round
+ : couples
  }
 

@@ -5,6 +5,7 @@
 (local {: difference
         : union
         : distance
+        : zone
         } (wesnoth.require :coord))
 
 (local {: hget
@@ -49,9 +50,9 @@
 (lambda place-villages [{: hexes : some-hexes : map-neighbors &as map}]
   (var available-hexes (->> (some-hexes :inner?)
                             (filter #(= :flat (hget hexes $1)))))
-  (for [i 1 5 1]
+  (for [i 1 8 1]
     (let [crd (draw-random available-hexes)
-          occupied (map-neighbors crd)]
+          occupied (zone crd 2)]
       (table.insert occupied crd)
       (hset hexes crd :village)
       (set available-hexes (difference available-hexes occupied))))
@@ -97,8 +98,8 @@
     (do
       (each [_ new-crd (ipairs nhbrs)]
         (let [new-dist (distance new-crd destination-crd)
-              cnt (if (< new-dist dist) 9
-                      (= new-dist dist) 3
+              cnt (if (< new-dist dist) 16
+                      (= new-dist dist) 4
                       1)]
           (for [i 1 cnt 1]
             (table.insert rndt new-crd))))

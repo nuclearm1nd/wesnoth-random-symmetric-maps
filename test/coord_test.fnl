@@ -20,6 +20,7 @@
         : line-constraint
         : line-area
         : line-area-border
+        : connecting-line
         } (require :../fnl/coord))
 
 (set package.path (.. package.path ";.luamodules/share/lua/5.4/luaunit.lua"))
@@ -467,6 +468,24 @@
       true
     )))
 
+(test ConnectingLine
+  (to-test-pairs lu.assertItemsEquals
+    (connecting-line [0 0] [0 0])
+    [[0 0]]
+
+    (connecting-line [0 0] [1 1])
+    [[0 0] [1 1]]
+
+    (connecting-line [0 0] [6 4])
+    [[0 0] [1 1] [2 1] [3 2] [4 3] [5 3] [6 4]]
+
+    (connecting-line [0 0] [-4 -3])
+    [[0 0] [-1 -1] [-2 -1] [-3 -2] [-4 -3]]
+
+    (connecting-line [-1 -3] [1 4])
+    [[-1 -3] [-1 -2] [0 -1] [0 0] [0 1] [0 2] [1 3] [1 4]]
+
+    ))
 
 (os.exit (lu.LuaUnit.run))
 

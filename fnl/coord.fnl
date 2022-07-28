@@ -2,6 +2,7 @@
         : partition
         : f-and
         : f-or
+        : round
         } (wesnoth.require :util))
 
 (macro if= [v ...]
@@ -179,6 +180,18 @@
       (and (including crd)
            (not (excluding crd))))))
 
+(lambda connecting-line [[q0 r0] [q1 r1]]
+  (let [result [[q0 r0]]
+        dist (distance [q0 r0] [q1 r1])
+        qstep (/ (- q1 q0) dist)
+        rstep (/ (- r1 r0) dist)]
+    (for [i 1 dist 1]
+      (table.insert
+        result
+        [(round (+ q0 (* i qstep)))
+         (round (+ r0 (* i rstep)))]))
+    result))
+
 {: union
  : difference
  : to-oddq
@@ -194,5 +207,6 @@
  : line-constraint
  : line-area
  : line-area-border
+ : connecting-line
 }
 

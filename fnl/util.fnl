@@ -67,6 +67,14 @@
       (table.insert result 1 v))
   result))
 
+(lambda round [x]
+  (let [fl (math.floor x)
+        cl (math.ceil x)]
+    (if (< (math.abs (- x fl))
+           (math.abs (- x cl)))
+      fl
+      cl)))
+
 {: filter
  : mapv
  : partition
@@ -75,5 +83,6 @@
  : any?
  : first
  : reverse
+ : round
  }
 

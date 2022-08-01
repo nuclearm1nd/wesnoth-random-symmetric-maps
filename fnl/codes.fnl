@@ -13,7 +13,7 @@
    :keep1 "1 Ke"
    :keep2 "2 Ke"
    :off-map "_off^_usr"
-   :cobbles "Rr"})
+   :cobbles "Rp"})
 
 (local random-landscape-weights
   {:flat 120

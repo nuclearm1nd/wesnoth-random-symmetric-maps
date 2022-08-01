@@ -6,18 +6,23 @@
         } (wesnoth.require :util))
 
 (macro if= [v ...]
-  (let [result []]
-    (each [i m (ipairs [...])]
-      (if (= 1 (% i 2))
-          (table.insert result `(= ,v ,m))
-          (table.insert result m)))
-    `(if ,(table.unpack result))))
+  `(let [v# ,v]
+     (if
+       ,(let [result []
+              add #(table.insert result $)]
+          (each [i m (ipairs [...])]
+            (if (= 1 (% i 2))
+                (add `(= v# ,m))
+                (add m)))
+          (table.unpack result)))))
 
-(macro or= [v ...]
-  (let [result []]
-    (each [_ m (ipairs [...])]
-      (table.insert result `(= ,v ,m)))
-    `(or ,(table.unpack result))))
+(macro in [v ...]
+  `(let [v# ,v]
+     (or
+       ,(let [result []]
+          (each [_ m (ipairs [...])]
+            (table.insert result `(= v# ,m)))
+          (table.unpack result)))))
 
 (lambda sign [x]
   (if (= 0 x) 0
@@ -108,18 +113,18 @@
 
 (lambda line-distance [[line-type constant] [q r]]
   (if
-    (or= line-type :horizontal :-)
+    (in line-type :horizontal :-)
       (let [x (- (* 2 r) q constant)]
         (* (sign x)
            (-> (math.abs x) (+ 1) (// 2))))
 
-    (or= line-type :vertical :|)
+    (in line-type :vertical :|)
       (- q constant)
 
-    (or= line-type :incline-right :/)
+    (in line-type :incline-right :/)
       (- r constant)
 
-    (or= line-type :incline-left :\)
+    (in line-type :incline-left :\)
       (- q r constant)))
 
 (lambda line-distance-constraint [line-def dist-fn]
@@ -139,22 +144,22 @@
          :on (gen #(= $ 0))
          :+ (gen gt0)
          :- (gen lt0)
-         :below (if (or= line-type :incline-left :\)
+         :below (if (in line-type :incline-left :\)
                       (gen lt0)
-                    (or= line-type :incline-right :/ :horizontal :-)
+                    (in line-type :incline-right :/ :horizontal :-)
                       (gen gt0)
                     (err))
-         :above (if (or= line-type :\ :incline-left)
+         :above (if (in line-type :\ :incline-left)
                       (gen gt0)
-                    (or= line-type :incline-right :/ :horizontal :-)
+                    (in line-type :incline-right :/ :horizontal :-)
                       (gen lt0)
                     (err))
-         :right (if (or= line-type :vertical :|
+         :right (if (in line-type :vertical :|
                                    :incline-left :\
                                    :incline-right :/)
                       (gen gt0)
                       (err))
-         :left  (if (or= line-type :vertical :|
+         :left  (if (in line-type :vertical :|
                                    :incline-left :\
                                    :incline-right :/)
                       (gen lt0)

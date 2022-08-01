@@ -21,10 +21,15 @@
     `(do ,(table.unpack result))))
 
 (lambda hget [hexes [x y]]
-  (?. (?. hexes y) x))
+  (-> hexes (?. y) (?. x)))
 
 (lambda hset [hexes [x y] value]
   (tset (. hexes y) x value))
+
+(lambda hmod [hexes crd func]
+  (->> (hget hexes crd)
+       func
+       (hset hexes crd)))
 
 (lambda generate-shape []
   (let
@@ -144,6 +149,7 @@
 
 {: hget
  : hset
+ : hmod
  : map-neighbors
  : generate-empty-map
  : oddq-bounds

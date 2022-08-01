@@ -1,28 +1,11 @@
+(import-macros {: if= : in} "../macro/macros")
+
 (local {: mapv
         : partition
         : f-and
         : f-or
         : round
         } (wesnoth.require :util))
-
-(macro if= [v ...]
-  `(let [v# ,v]
-     (if
-       ,(let [result []
-              add #(table.insert result $)]
-          (each [i m (ipairs [...])]
-            (if (= 1 (% i 2))
-                (add `(= v# ,m))
-                (add m)))
-          (table.unpack result)))))
-
-(macro in [v ...]
-  `(let [v# ,v]
-     (or
-       ,(let [result []]
-          (each [_ m (ipairs [...])]
-            (table.insert result `(= v# ,m)))
-          (table.unpack result)))))
 
 (lambda sign [x]
   (if (= 0 x) 0

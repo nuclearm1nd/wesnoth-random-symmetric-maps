@@ -1,3 +1,5 @@
+(import-macros {: <<-} "../macro/macros")
+
 (local {: filter
         : first
         : couples
@@ -21,12 +23,6 @@
         : random-landscape-weights
         : mirror-hex
         } (wesnoth.require :codes))
-
-(macro <<- [...]
-  (let [items []]
-    (each [_ v (ipairs [...])]
-      (table.insert items 1 v))
-    `(->> ,(table.unpack items))))
 
 (lambda draw-random [t]
   (. t (math.random (length t))))

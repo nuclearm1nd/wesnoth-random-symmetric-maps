@@ -1,3 +1,5 @@
+(import-macros {: set-methods} "../macro/macros")
+
 (local {: filter
         : f-or
         } (wesnoth.require :util))
@@ -12,13 +14,6 @@
         : line-area
         : line-area-border
         } (wesnoth.require :coord))
-
-(macro set-methods [t ...]
-  (let [result []]
-    (each [_ m (ipairs [...])]
-      (table.insert result
-        `(tset ,t ,(tostring m) (partial ,m ,t))))
-    `(do ,(table.unpack result))))
 
 (lambda hget [hexes [x y]]
   (-> hexes (?. y) (?. x)))

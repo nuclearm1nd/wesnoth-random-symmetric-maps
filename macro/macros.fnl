@@ -96,6 +96,16 @@
         (set cur-gensym new-gensym)))
     `(let ,lets ,cur-gensym)))
 
+(fn groupwise [size inner outer ...]
+  (let [result []]
+    (each [_ group (ipairs (partition size [...]))]
+      (table.insert result `(,inner ,(table.unpack group))))
+    `(,outer
+       ,(table.unpack result))))
+
+(local pairwise
+  (partial groupwise 2))
+
 {: if=
  : in
  : set-methods
@@ -103,5 +113,7 @@
  : as->
  : array->
  : cond->
+ : groupwise
+ : pairwise
  }
 

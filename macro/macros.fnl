@@ -10,6 +10,17 @@
       (table.insert result 1 v))
   result))
 
+(lambda partition [size items]
+  (var part nil)
+  (let [result []]
+    (each [i v (ipairs items)]
+      (if (= 1 (% i size))
+        (set part [v])
+        (table.insert part v))
+      (if (= 0 (% i size))
+        (table.insert result part)))
+    result))
+
 (fn if= [v ...]
   `(let [v# ,v]
      (if
@@ -37,9 +48,60 @@
 (fn <<- [...]
   `(->> ,(table.unpack (reverse [...]))))
 
+(fn code-traverse [f]
+  (fn recur [exprn]
+    (if (not (list? exprn))
+      (f exprn)
+      (->> exprn
+        (mapv recur)
+        table.unpack
+        list))))
+
+(fn as-> [name init ...]
+  (var cur-gensym (gensym))
+  (let [result [cur-gensym init]
+        swapper (code-traverse #(if (= $ name) cur-gensym $))]
+    (each [_ expr (ipairs [...])]
+      (let [new-gensym (gensym)]
+        (table.insert result new-gensym)
+        (table.insert result (swapper expr))
+        (set cur-gensym new-gensym)))
+    `(let ,result ,cur-gensym)))
+
+(fn array-> [name init ...]
+  (var cur-gensym (gensym))
+  (let [lets [cur-gensym init]
+        array [cur-gensym]
+        swapper (code-traverse #(if (= $ name) cur-gensym $))]
+    (each [_ expr (ipairs [...])]
+      (let [new-gensym (gensym)]
+        (table.insert lets new-gensym)
+        (table.insert lets (swapper expr))
+        (table.insert array new-gensym)
+        (set cur-gensym new-gensym)))
+    `(let ,lets ,array)))
+
+(fn cond-> [name init ...]
+  (assert (-> [...] length (% 2) (= 0))
+          "Even number of forms expected")
+  (var cur-gensym (gensym))
+  (let [lets [cur-gensym init]
+        swapper (code-traverse #(if (= $ name) cur-gensym $))]
+    (each [_ [cond expr] (ipairs (partition 2 [...]))]
+      (let [new-gensym (gensym)]
+        (table.insert lets new-gensym)
+        (table.insert lets `(if ,(swapper cond)
+                                ,(swapper expr)
+                                ,cur-gensym))
+        (set cur-gensym new-gensym)))
+    `(let ,lets ,cur-gensym)))
+
 {: if=
  : in
  : set-methods
  : <<-
-}
+ : as->
+ : array->
+ : cond->
+ }
 

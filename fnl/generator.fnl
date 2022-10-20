@@ -39,6 +39,47 @@
     (symmetric-hex map crd))
   map)
 
+(lambda midpoint-displacement
+  [map-neighbors
+   initial-crd
+   destination-crd]
+  (var points [initial-crd destination-crd])
+  (for [i 1 3 1]
+    (let [acc [(. points 1)]
+          add #(table.insert acc $)]
+      (each [_ [crd1 crd2] (ipairs (couples points))]
+        (let [mid (midpoint crd1 crd2)
+              displaced
+                (difference
+                  (map-neighbors mid (- 5 i))
+                  (connecting-line crd1 crd2))]
+          (assert
+            (< 0 (length displaced))
+            "No suitable candidate for displaced point")
+          (add (draw-random displaced))
+          (add crd2)))
+      (set points acc)))
+  points)
+
+(lambda paint-straight
+  [hexes code constraint crd1 crd2]
+  (each [_ crd (ipairs (connecting-line crd1 crd2))]
+    (when (constraint (hget hexes crd))
+      (hset hexes crd code))))
+
+(lambda paint-midpoint-displacement
+  [map-neighbors
+   hexes
+   constraint
+   code
+   initial-crd
+   destination-crd]
+  (each [_ [crd1 crd2]
+           (->> (midpoint-displacement map-neighbors initial-crd destination-crd)
+                couples
+                ipairs)]
+    (paint-straight hexes code constraint crd1 crd2)))
+
 (lambda gen-half [{: hexes : some-hexes &as map}]
   (let [random-hex (random-hex-gen random-landscape-weights)]
     (each [_ crd (ipairs (->> (some-hexes :half?)
@@ -71,8 +112,9 @@
     : map-neighbors
     : half?
     &as map}
-   destination-crd
-   initial-crd]
+   constraint
+   initial-crd
+   destination-crd]
   (var finished false)
   (var crd initial-crd)
   (var exclude-list [crd])
@@ -82,7 +124,7 @@
     (if (= :cobbles hex)
       (set finished true))
     (do
-      (when (= :flat hex)
+      (when (constraint hex)
         (hset hexes crd :cobbles)))
     (let [dist (distance crd destination-crd)])
     (if (<= dist 1)
@@ -105,47 +147,33 @@
       (set crd (draw-random rndt))
       (set exclude-list (union exclude-list nhbrs)))))
 
-(lambda pave-road-straight
-  [{: hexes &as map}
-   destination-crd
-   initial-crd]
-  (each [_ crd (ipairs (connecting-line initial-crd destination-crd))]
-    (when (= :flat (hget hexes crd))
-      (hset hexes crd :cobbles))))
-
-(lambda pave-road-midpoint-displacement
-  [{: hexes
-    : map-neighbors
-    : half?
-    &as map}
-   destination-crd
-   initial-crd]
-  (var points [initial-crd destination-crd])
-  (for [i 1 3 1]
-    (let [acc [(. points 1)]
-          add #(table.insert acc $)]
-      (each [_ [crd1 crd2] (ipairs (couples points))]
-        (let [mid (midpoint crd1 crd2)
-              displaced
-                (draw-random
-                  (difference
-                    (filter half?
-                            (map-neighbors mid (- 5 i)))
-                    (connecting-line crd1 crd2)))]
-          (add displaced)
-          (add crd2)))
-      (set points acc)))
-  (each [_ [crd1 crd2] (ipairs (couples points))]
-    (pave-road-straight map crd1 crd2)))
-
 (lambda pave-roads [{: hexes : some-hexes : symmetric-crd &as map}]
-  (let [keep-crd (->> (some-hexes :half?)
+  (let [keep-crd (->> (some-hexes :for-keep?)
                       (first #(= :keep1 (hget hexes $))))
         road-origin1 (->> (some-hexes :road-origin?)
                           draw-random)
         road-origin2 (symmetric-crd road-origin1)]
-    (pave-road-midpoint-displacement map keep-crd road-origin2)
-    (pave-road-search map keep-crd road-origin1)
+    (pave-road-search map #(~= :encampment $) road-origin1 keep-crd)
+    (pave-road-search map #(= :flat $) road-origin2 keep-crd)
+    map))
+
+(lambda create-water [{: hexes : some-hexes : symmetric-crd : map-neighbors &as map}]
+  (let [paint-ford (partial paint-midpoint-displacement
+                            map-neighbors
+                            hexes
+                            #(= :flat $)
+                            :ford)
+        keep-crd (->> (some-hexes :for-keep?)
+                      (first #(= :keep1 (hget hexes $))))
+        water-origin1 (->> (some-hexes :road-origin?)
+                           draw-random)
+        water-origin2 (symmetric-crd water-origin1)
+        water-origin3 (draw-random (some-hexes :inner?))]
+    (paint-ford keep-crd water-origin1)
+    (paint-ford keep-crd water-origin2)
+    (paint-ford water-origin3 water-origin2)
+    (paint-ford water-origin3 water-origin1)
+    (paint-ford water-origin3 keep-crd)
     map))
 
 (lambda map-to-string [{: to-string} codes]
@@ -155,6 +183,7 @@
   (->
     (generate-empty-map)
     place-keep
+    create-water
     pave-roads
     place-villages
     gen-half

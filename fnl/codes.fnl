@@ -20,11 +20,8 @@
    :forest 25
    :hill 10
    :mountain 5
-   :ford 10
-   :shallow-water 5
    :sand 2
-   :fungus 1
-   :swamp 1})
+   :fungus 1})
 
 (lambda random-hex-gen [weights]
   (var gap-table [])

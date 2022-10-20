@@ -11,6 +11,12 @@
       (table.insert result (func v)))
     result))
 
+(lambda reduce [init f coll]
+  (var result init)
+  (each [_ v (ipairs coll)]
+    (set result (f result v)))
+  result)
+
 (lambda partition [size items]
   (var part nil)
   (let [result []]
@@ -88,6 +94,7 @@
 
 {: filter
  : mapv
+ : reduce
  : partition
  : f-or
  : f-and

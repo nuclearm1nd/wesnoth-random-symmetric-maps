@@ -1,6 +1,7 @@
 (import-macros {: if= : in} "../macro/macros")
 
 (local {: mapv
+        : reduce
         : partition
         : f-and
         : f-or
@@ -93,6 +94,15 @@
   (partial point-zone-factory
     (lambda [max-dist dist]
       (<= dist max-dist))))
+
+(lambda coll-neighbors [coll ?distance]
+  (let [dist (or ?distance 1)]
+    (reduce []
+      (lambda [acc crd]
+        (-> (neighbors crd dist)
+            (difference coll)
+            (union acc)))
+      coll)))
 
 (lambda line-distance [[line-type constant] [q r]]
   (if
@@ -192,6 +202,7 @@
  : symmetric
  : distance
  : neighbors
+ : coll-neighbors
  : zone
  : line-distance
  : line-distance-constraint

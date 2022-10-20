@@ -1,4 +1,4 @@
-(import-macros {: <<-} "../macro/macros")
+(import-macros {: <<- : in} "../macro/macros")
 
 (local {: filter
         : first
@@ -11,6 +11,7 @@
         : zone
         : connecting-line
         : midpoint
+        : coll-neighbors
         } (wesnoth.require :coord))
 
 (local {: hget
@@ -21,6 +22,8 @@
 (local {: codes
         : random-hex-gen
         : random-landscape-weights
+        : water-features-weights
+        : coast-features-weights
         : mirror-hex
         } (wesnoth.require :codes))
 
@@ -176,6 +179,26 @@
     (paint-ford water-origin3 keep-crd)
     map))
 
+(lambda create-water-features [{: hexes : some-hexes &as map}]
+  (let [random-hex (random-hex-gen water-features-weights)]
+    (each [_ crd (ipairs (->> (some-hexes :half?)
+                              (filter #(= :ford (hget hexes $)))))]
+      (hset hexes crd (random-hex)))
+    map))
+
+(lambda create-coast-features [{: hexes : some-hexes &as map}]
+  (let [random-hex (random-hex-gen coast-features-weights)]
+    (each [_ crd
+             (ipairs (->> (some-hexes :half?)
+                          (filter #(in (hget hexes $)
+                                       :ford :shallow-water :coastal-reef))
+                          coll-neighbors
+                          (filter #(= :flat (hget hexes $)))))]
+      (let [hex (random-hex)]
+        (if (~= :skip hex)
+          (hset hexes crd hex))))
+    map))
+
 (lambda map-to-string [{: to-string} codes]
   (to-string codes))
 
@@ -184,6 +207,8 @@
     (generate-empty-map)
     place-keep
     create-water
+    create-water-features
+    create-coast-features
     pave-roads
     place-villages
     gen-half

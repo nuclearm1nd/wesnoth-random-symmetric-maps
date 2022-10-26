@@ -6,6 +6,7 @@
         : f-and
         : f-or
         : round
+        : negate
         } (wesnoth.require :util))
 
 (lambda sign [x]
@@ -194,6 +195,12 @@
   [(-> (+ q0 q1) (/ 2) round)
    (-> (+ r0 r1) (/ 2) round)])
 
+(lambda constraint-difference [constraint ...]
+  (f-and
+    [constraint
+      (table.unpack
+        (mapv negate [...]))]))
+
 {: union
  : difference
  : to-oddq
@@ -212,5 +219,6 @@
  : line-area-border
  : connecting-line
  : midpoint
+ : constraint-difference
 }
 

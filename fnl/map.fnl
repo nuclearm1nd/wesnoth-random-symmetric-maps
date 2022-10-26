@@ -13,6 +13,7 @@
         : to-oddq
         : line-area
         : line-area-border
+        : constraint-difference
         } (wesnoth.require :coord))
 
 (lambda hget [hexes [x y]]
@@ -40,17 +41,7 @@
         :below :\ (// qmax 2)
         :above :\ (- (// rmax 2))]
      on-map? (line-area on-map)
-     hexes []]
-    (for [r 0 rmax 1]
-      (tset hexes r [])
-      (for [q 0 qmax 1]
-        (hset hexes [q r]
-              (if (on-map? [q r]) :flat :off-map))))
-    {: qmax
-     : rmax
-     : on-map?
-     : hexes
-     :half?
+     half?
        (f-or
          [(line-area
             [:below :- -6
@@ -62,18 +53,38 @@
             [:/ (// rmax 2)]
             (fn [[q _]] (and (> q 0)
                              (<= q (/ qmax 2)))))])
+     inner?
+       (line-area
+         [:below :- -2
+          :right :| 3
+          :below :/ 3
+          :above :/ (-> rmax (// 2) (- 4))
+          :below :\ (-> qmax (// 2) (- 2))])
+     outer? (constraint-difference
+              half?
+              (line-area
+                [:below :- -4
+                 :below :/ 2
+                 :right :| 2
+                 :below :\ (-> qmax (// 2) (- 2))]))
+     hexes []]
+    (for [r 0 rmax 1]
+      (tset hexes r [])
+      (for [q 0 qmax 1]
+        (hset hexes [q r]
+              (if (on-map? [q r]) :flat :off-map))))
+    {: qmax
+     : rmax
+     : on-map?
+     : hexes
+     : half?
+     : inner?
+     : outer?
      :road-origin?
        (line-segment-constraint
             [:/ (// rmax 2)]
             (fn [[q _]] (and (> q 5)
                              (<= q (-> qmax (/ 2) (- 3))))))
-     :inner?
-       (line-area
-         [:below :- -4
-          :right :| 2
-          :below :/ 2
-          :above :/ (-> rmax (// 2) (- 4))
-          :below :\ (-> qmax (// 2) (- 2))])
      :for-keep?
        (line-area
          [:below :- -2
@@ -113,7 +124,7 @@
         (if (> x xmax) (set xmax x))
         (if (< y ymin) (set ymin y))
         (if (> y ymax) (set ymax y))))
-    [xmin xmax ymin ymax]))
+    [xmin xmax ymin (+ 1 ymax)]))
 
 (lambda to-string [{: hexes : on-map? &as map} codes]
   (var result "")

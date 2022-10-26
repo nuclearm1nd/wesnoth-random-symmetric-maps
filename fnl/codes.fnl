@@ -42,6 +42,13 @@
    :swamp 5
    :sand 5})
 
+(local difficult-terrain-weights
+  {:hill-forest 20
+   :impassable-mountain 5
+   :mountain 5
+   :hill 5
+   :hill-fungus 1})
+
 (lambda random-hex-gen [weights]
   (var gap-table [])
   (each [k v (pairs weights)]
@@ -60,5 +67,7 @@
  : random-landscape-weights
  : water-features-weights
  : coast-features-weights
- : mirror-hex}
+ : mirror-hex
+ : difficult-terrain-weights
+ }
 

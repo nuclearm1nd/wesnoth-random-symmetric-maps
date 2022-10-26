@@ -24,6 +24,7 @@
         : random-landscape-weights
         : water-features-weights
         : coast-features-weights
+        : difficult-terrain-weights
         : mirror-hex
         } (wesnoth.require :codes))
 
@@ -199,6 +200,15 @@
           (hset hexes crd hex))))
     map))
 
+(lambda gen-outer-edge [{: hexes : some-hexes &as map}]
+  (let [random-hex (random-hex-gen difficult-terrain-weights)]
+    (each [_ crd
+             (ipairs (->> (some-hexes :outer?)
+                          (filter #(= :flat (hget hexes $)))))]
+      (let [hex (random-hex)]
+        (hset hexes crd hex)))
+    map))
+
 (lambda map-to-string [{: to-string} codes]
   (to-string codes))
 
@@ -211,6 +221,7 @@
     create-coast-features
     pave-roads
     place-villages
+    gen-outer-edge
     gen-half
     symmetrize-map
     (map-to-string codes)))

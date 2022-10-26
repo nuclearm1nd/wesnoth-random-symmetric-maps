@@ -92,6 +92,10 @@
       (set i (+ 1 i)))
     result))
 
+(lambda negate [f]
+  (lambda [...]
+    (not (f ...))))
+
 {: filter
  : mapv
  : reduce
@@ -103,5 +107,6 @@
  : reverse
  : round
  : couples
+ : negate
  }
 

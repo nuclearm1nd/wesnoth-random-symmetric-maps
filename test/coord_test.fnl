@@ -21,6 +21,7 @@
         : line-area
         : line-area-border
         : connecting-line
+        : constraint-difference
         } (require :../fnl/coord))
 
 (set package.path (.. package.path ";.luamodules/share/lua/5.4/luaunit.lua"))
@@ -492,6 +493,46 @@
     [[-1 -3] [-1 -2] [0 -1] [0 0] [0 1] [0 2] [1 3] [1 4]]
 
     ))
+
+(test ConstraintDifference
+  (let [area1
+         (line-area
+           [:+ :-  0
+            :- :- 11
+            :+ :|  0
+            :- :|  6 ])
+        area2
+         (line-area
+           [:+ :-  3
+            :- :- 11
+            :+ :|  3
+            :- :|  6 ])
+        constraint (constraint-difference area1 area2)]
+    (to-test-pairs lu.assertEquals
+      (constraint [1 1])
+      true
+
+      (constraint [5 3])
+      true
+
+      (constraint [5 7])
+      false
+
+      (constraint [1 5])
+      true
+
+      (constraint [0 1])
+      false
+
+      (constraint [4 3])
+      true
+
+      (constraint [5 5])
+      false
+
+      (constraint [1 5])
+      true
+    )))
 
 (os.exit (lu.LuaUnit.run))
 

@@ -29,8 +29,8 @@
 
 (lambda generate-shape []
   (let
-    [qmax 38
-     rmax 38
+    [qmax 42
+     rmax 42
      on-map
        [:below :- -6
         :above :- (+ 6 rmax)
@@ -38,8 +38,8 @@
         :left  :| qmax
         :below :/ 0
         :above :/ rmax
-        :below :\ (// qmax 2)
-        :above :\ (- (// rmax 2))]
+        :below :\ (-> qmax (// 2) (- 4))
+        :above :\ (-> rmax (// 2) (-) (+ 4))]
      on-map? (line-area on-map)
      half?
        (f-or
@@ -48,25 +48,27 @@
              :right :| 0
              :below :/ 0
              :above :/ (// rmax 2)
-             :below :\ (// qmax 2)])
+             :below :\ (-> qmax (// 2) (- 4))
+             :above :\ (-> rmax (// 2) (-) (+ 4))])
           (line-segment-constraint
             [:/ (// rmax 2)]
             (fn [[q _]] (and (> q 0)
-                             (<= q (/ qmax 2)))))])
+                             (<= q (// qmax 2)))))])
      inner?
        (line-area
          [:below :- -2
           :right :| 3
           :below :/ 3
           :above :/ (-> rmax (// 2) (- 4))
-          :below :\ (-> qmax (// 2) (- 2))])
+          :below :\ (-> qmax (// 2) (- 6))])
      outer? (constraint-difference
               half?
               (line-area
                 [:below :- -4
                  :below :/ 2
                  :right :| 2
-                 :below :\ (-> qmax (// 2) (- 2))]))
+                 :below :\ (-> qmax (// 2) (- 6))
+                 :above :\ (-> rmax (// 2) (-) (+ 6))]))
      hexes []]
     (for [r 0 rmax 1]
       (tset hexes r [])
@@ -84,14 +86,14 @@
        (line-segment-constraint
             [:/ (// rmax 2)]
             (fn [[q _]] (and (> q 5)
-                             (<= q (-> qmax (/ 2) (- 3))))))
+                             (<= q (-> qmax (/ 2) (- 5))))))
      :for-keep?
        (line-area
          [:below :- -2
           :right :| 4
           :below :/ 4
           :above :/ (// rmax 4)
-          :below :\ (-> qmax (// 2) (- 4))])
+          :below :\ (-> qmax (// 2) (- 8))])
      :on-border? (line-area-border on-map)}))
 
 (lambda map-neighbors [{: on-map?} crd ?dist]

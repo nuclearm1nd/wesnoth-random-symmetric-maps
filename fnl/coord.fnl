@@ -96,6 +96,11 @@
     (lambda [max-dist dist]
       (<= dist max-dist))))
 
+(lambda belt [min max crd]
+  (difference
+    (zone crd max)
+    (zone crd min)))
+
 (lambda coll-neighbors [coll ?distance]
   (let [dist (or ?distance 1)]
     (reduce []
@@ -211,6 +216,7 @@
  : neighbors
  : coll-neighbors
  : zone
+ : belt
  : line-distance
  : line-distance-constraint
  : line-segment-constraint

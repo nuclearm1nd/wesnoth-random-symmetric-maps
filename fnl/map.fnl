@@ -1,141 +1,62 @@
-(import-macros {: set-methods} "../macro/macros")
-
-(local {: filter
-        : f-or
-        } (wesnoth.require :util))
-
-(local {: line-constraint
-        : line-distance-constraint
-        : line-segment-constraint
-        : neighbors
-        : symmetric
-        : to-axial
+(local {: to-axial
         : to-oddq
-        : line-area
-        : line-area-border
-        : constraint-difference
         } (wesnoth.require :coord))
 
-(lambda hget [hexes [x y]]
-  (-> hexes (?. y) (?. x)))
+(lambda hget [hexes [q r]]
+  (-> hexes (?. r) (?. q)))
 
-(lambda hset [hexes [x y] value]
-  (tset (. hexes y) x value))
+(lambda hset [hexes [q r] value]
+  (when (not (?. hexes r))
+    (tset hexes r []))
+  (tset (. hexes r) q value))
 
 (lambda hmod [hexes crd func]
   (->> (hget hexes crd)
        func
        (hset hexes crd)))
 
-(lambda generate-shape []
-  (let
-    [qmax 42
-     rmax 42
-     on-map
-       [:below :- -6
-        :above :- (+ 6 rmax)
-        :right :| 0
-        :left  :| qmax
-        :below :/ 0
-        :above :/ rmax
-        :below :\ (-> qmax (// 2) (- 4))
-        :above :\ (-> rmax (// 2) (-) (+ 4))]
-     on-map? (line-area on-map)
-     half?
-       (f-or
-         [(line-area
-            [:below :- -6
-             :right :| 0
-             :below :/ 0
-             :above :/ (// rmax 2)
-             :below :\ (-> qmax (// 2) (- 4))
-             :above :\ (-> rmax (// 2) (-) (+ 4))])
-          (line-segment-constraint
-            [:/ (// rmax 2)]
-            (fn [[q _]] (and (> q 0)
-                             (<= q (// qmax 2)))))])
-     inner?
-       (line-area
-         [:below :- -2
-          :right :| 3
-          :below :/ 3
-          :above :/ (-> rmax (// 2) (- 4))
-          :below :\ (-> qmax (// 2) (- 6))])
-     outer? (constraint-difference
-              half?
-              (line-area
-                [:below :- -4
-                 :below :/ 2
-                 :right :| 2
-                 :below :\ (-> qmax (// 2) (- 6))
-                 :above :\ (-> rmax (// 2) (-) (+ 6))]))
-     hexes []]
-    (for [r 0 rmax 1]
-      (tset hexes r [])
-      (for [q 0 qmax 1]
-        (hset hexes [q r]
-              (if (on-map? [q r]) :flat :off-map))))
-    {: qmax
-     : rmax
-     : on-map?
-     : hexes
-     : half?
-     : inner?
-     : outer?
-     :road-origin?
-       (line-segment-constraint
-            [:/ (// rmax 2)]
-            (fn [[q _]] (and (> q 5)
-                             (<= q (-> qmax (/ 2) (- 5))))))
-     :for-keep?
-       (line-area
-         [:below :- -2
-          :right :| 4
-          :below :/ 4
-          :above :/ (// rmax 4)
-          :below :\ (-> qmax (// 2) (- 8))])
-     :on-border? (line-area-border on-map)}))
-
-(lambda map-neighbors [{: on-map?} crd ?dist]
-  (let [dist (or ?dist 1)]
-    (->> (neighbors crd dist)
-         (filter on-map?))))
-
-(lambda some-hexes [{: qmax : rmax &as map} key]
-  (let [result []
-        criterium (. map key)]
-    (for [r 0 rmax 1]
-      (for [q 0 qmax 1]
-        (when (criterium [q r])
-          (table.insert result [q r]))))
+(lambda some-crds [criterium hexes]
+  (let [result []]
+    (each [r row (pairs hexes)]
+      (each [q _ (pairs row)]
+        (let [crd [q r]]
+          (when (criterium crd)
+                (table.insert result crd)))))
     result))
 
-(lambda symmetric-crd [{: qmax : rmax} crd]
-  (symmetric crd [(/ qmax 2) (/ rmax 2)]))
+(local all-crds
+  (partial some-crds #true))
 
-(lambda oddq-bounds [map]
-  (let [crds (some-hexes map :on-border?)
-        [x0 y0] (. crds 1)]
-    (var xmin x0)
-    (var xmax x0)
-    (var ymin y0)
-    (var ymax y0)
-    (each [_ v (pairs crds)]
-      (let [[x y] (to-oddq v)]
-        (if (< x xmin) (set xmin x))
-        (if (> x xmax) (set xmax x))
-        (if (< y ymin) (set ymin y))
-        (if (> y ymax) (set ymax y))))
-    [xmin xmax ymin (+ 1 ymax)]))
+(lambda oddq-bounds [hexes]
+  (var xmin 0)
+  (var xmax 0)
+  (var ymin 0)
+  (var ymax 0)
+  (each [_ v (ipairs (all-crds hexes))]
+    (let [[x y] (to-oddq v)]
+      (if (< x xmin) (set xmin x))
+      (if (> x xmax) (set xmax x))
+      (if (< y ymin) (set ymin y))
+      (if (> y ymax) (set ymax y))))
+  [(if (-> xmin (% 2) (= 0))
+     xmin
+     (- xmin 1))
+   (if (-> xmax (% 2) (= 0))
+     xmax
+     (+ xmax 1))
+   (- ymin 1)
+   (+ ymax 1)])
 
-(lambda to-string [{: hexes : on-map? &as map} codes]
+(lambda to-wesnoth-map-csv [hexes codes]
   (var result "")
-  (let [[xmin xmax ymin ymax] (oddq-bounds map)
+  (let [[xmin xmax ymin ymax] (oddq-bounds hexes)
         add (lambda [val]
               (set result (.. result val)))
         get-code (lambda [crd]
-                   (let [cd (hget hexes crd)]
-                     (if (and cd (on-map? crd))
+                   (let [cd (->
+                              (hget hexes crd)
+                              (?. :tile))]
+                     (if cd
                        (. codes cd)
                        (. codes :off-map))))]
     (for [y ymin ymax 1]
@@ -146,20 +67,12 @@
       (add "\n"))
     result))
 
-(lambda generate-empty-map []
-  (let [map (generate-shape)]
-    (set-methods map
-      map-neighbors
-      some-hexes
-      symmetric-crd
-      to-string)
-    map))
-
 {: hget
  : hset
  : hmod
- : map-neighbors
- : generate-empty-map
+ : all-crds
+ : some-crds
  : oddq-bounds
+ : to-wesnoth-map-csv
  }
 

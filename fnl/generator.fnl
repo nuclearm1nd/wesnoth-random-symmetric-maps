@@ -1,22 +1,31 @@
-(import-macros {: <<- : in} "../macro/macros")
+(import-macros {: <<- : in : as->} "../macro/macros")
 
 (local {: filter
         : first
         : couples
+        : round
+        : f-and
+        : mapv
         } (wesnoth.require :util))
 
 (local {: difference
         : union
         : distance
         : zone
+        : belt
         : connecting-line
         : midpoint
+        : neighbors
         : coll-neighbors
+        : symmetric
+        : line-area
         } (wesnoth.require :coord))
 
 (local {: hget
         : hset
-        : generate-empty-map
+        : all-crds
+        : some-crds
+        : to-wesnoth-map-csv
         } (wesnoth.require :map))
 
 (local {: codes
@@ -31,17 +40,20 @@
 (lambda draw-random [t]
   (. t (math.random (length t))))
 
-(lambda symmetric-hex [{: hexes : symmetric-crd &as map} crd]
+(lambda symmetric-hex [hexes crd]
   (hset hexes
-        (symmetric-crd crd)
+        (symmetric crd)
         (->> crd
              (hget hexes)
              mirror-hex)))
 
-(lambda symmetrize-map [{: hexes : some-hexes &as map}]
-  (each [_ crd (ipairs (some-hexes :half?))]
-    (symmetric-hex map crd))
+(lambda symmetrize-map [{: hexes : half? &as map}]
+  (each [_ crd (ipairs (some-crds half? hexes))]
+    (symmetric-hex hexes crd))
   map)
+
+(lambda to-csv [{: hexes}]
+  (to-wesnoth-map-csv hexes codes))
 
 (lambda midpoint-displacement
   [map-neighbors
@@ -84,147 +96,64 @@
                 ipairs)]
     (paint-straight hexes code constraint crd1 crd2)))
 
-(lambda gen-half [{: hexes : some-hexes &as map}]
-  (let [random-hex (random-hex-gen random-landscape-weights)]
-    (each [_ crd (ipairs (->> (some-hexes :half?)
-                              (filter #(= :flat (hget hexes $)))))]
-      (hset hexes crd (random-hex)))
-  map))
+(lambda gen-shape []
+  (let
+    [half?
+      (lambda [[q r]]
+        (or (<= 0 q)
+            (<= 1 r)))
+     on-map?
+       (line-area
+         [:below :- -24
+          :above :-  24
+          :right :| -16
+          :left  :|  16
+          :below :/ -16
+          :above :/  16
+          :below :\  12
+          :above :\ -12])
+     hexes []]
+    (for [q -32 32 1]
+      (for [r -32 32 1]
+        (when (on-map? [q r])
+          (hset hexes [q r] {:tile :flat}))))
+    {: hexes
+     : half?
+     : on-map?}))
 
-(lambda place-villages [{: hexes : some-hexes : map-neighbors &as map}]
-  (var available-hexes (->> (some-hexes :inner?)
-                            (filter #(= :flat (hget hexes $)))))
-  (for [i 1 8 1]
-    (let [crd (draw-random available-hexes)
-          occupied (zone crd 2)]
-      (table.insert occupied crd)
-      (hset hexes crd :village)
-      (set available-hexes (difference available-hexes occupied))))
+(lambda seed-mounts [{: hexes : half? &as map}]
+  (var crds (some-crds half? hexes))
+  (while (< 0 (length crds))
+    (let [crd (draw-random crds)
+          around (zone crd 4)
+          excluded
+           (union around
+             (mapv symmetric around))]
+      (hset hexes crd {:tile :mountain})
+      (set crds (difference crds excluded))))
   map)
 
-(lambda place-keep [{: hexes : some-hexes : map-neighbors &as map}]
-  (let [keep-crd (draw-random (some-hexes :for-keep?))
-        nhbrs (map-neighbors keep-crd)]
-    (each [_ crd (ipairs nhbrs)]
-      (hset hexes crd :encampment))
-    (hset hexes keep-crd :keep1)
-    map))
-
-(lambda pave-road-search
-  [{: hexes
-    : some-hexes
-    : map-neighbors
-    : half?
-    &as map}
-   constraint
-   initial-crd
-   destination-crd]
-  (var finished false)
-  (var crd initial-crd)
-  (var exclude-list [crd])
-  (<<-
-    (while (not finished))
-    (let [hex (hget hexes crd)])
-    (if (= :cobbles hex)
-      (set finished true))
-    (do
-      (when (constraint hex)
-        (hset hexes crd :cobbles)))
-    (let [dist (distance crd destination-crd)])
-    (if (<= dist 1)
-      (set finished true))
-    (let [nhbrs (difference
-                  (->> (map-neighbors crd)
-                       (filter half?))
-                  exclude-list)
-          rndt []])
-    (if (= 0 (length nhbrs))
-      (set finished true))
-    (do
-      (each [_ new-crd (ipairs nhbrs)]
-        (let [new-dist (distance new-crd destination-crd)
-              cnt (if (< new-dist dist) 16
-                      (= new-dist dist) 4
-                      1)]
-          (for [i 1 cnt 1]
-            (table.insert rndt new-crd))))
-      (set crd (draw-random rndt))
-      (set exclude-list (union exclude-list nhbrs)))))
-
-(lambda pave-roads [{: hexes : some-hexes : symmetric-crd &as map}]
-  (let [keep-crd (->> (some-hexes :for-keep?)
-                      (first #(= :keep1 (hget hexes $))))
-        road-origin1 (->> (some-hexes :road-origin?)
-                          draw-random)
-        road-origin2 (symmetric-crd road-origin1)]
-    (pave-road-search map #(~= :encampment $) road-origin1 keep-crd)
-    (pave-road-search map #(= :flat $) road-origin2 keep-crd)
-    map))
-
-(lambda create-water [{: hexes : some-hexes : symmetric-crd : map-neighbors &as map}]
-  (let [paint-ford (partial paint-midpoint-displacement
-                            map-neighbors
-                            hexes
-                            #(= :flat $)
-                            :ford)
-        keep-crd (->> (some-hexes :for-keep?)
-                      (first #(= :keep1 (hget hexes $))))
-        water-origin1 (->> (some-hexes :road-origin?)
-                           draw-random)
-        water-origin2 (symmetric-crd water-origin1)
-        water-origin3 (draw-random (some-hexes :inner?))]
-    (paint-ford keep-crd water-origin1)
-    (paint-ford keep-crd water-origin2)
-    (paint-ford water-origin3 water-origin2)
-    (paint-ford water-origin3 water-origin1)
-    (paint-ford water-origin3 keep-crd)
-    map))
-
-(lambda create-water-features [{: hexes : some-hexes &as map}]
-  (let [random-hex (random-hex-gen water-features-weights)]
-    (each [_ crd (ipairs (->> (some-hexes :half?)
-                              (filter #(= :ford (hget hexes $)))))]
-      (hset hexes crd (random-hex)))
-    map))
-
-(lambda create-coast-features [{: hexes : some-hexes &as map}]
-  (let [random-hex (random-hex-gen coast-features-weights)]
-    (each [_ crd
-             (ipairs (->> (some-hexes :half?)
-                          (filter #(in (hget hexes $)
-                                       :ford :shallow-water :coastal-reef))
-                          coll-neighbors
-                          (filter #(= :flat (hget hexes $)))))]
-      (let [hex (random-hex)]
-        (if (~= :skip hex)
-          (hset hexes crd hex))))
-    map))
-
-(lambda gen-outer-edge [{: hexes : some-hexes &as map}]
-  (let [random-hex (random-hex-gen difficult-terrain-weights)]
-    (each [_ crd
-             (ipairs (->> (some-hexes :outer?)
-                          (filter #(= :flat (hget hexes $)))))]
-      (let [hex (random-hex)]
-        (hset hexes crd hex)))
-    map))
-
-(lambda map-to-string [{: to-string} codes]
-  (to-string codes))
+(lambda patch-borders [{: hexes : half? &as map}]
+  (each [_ crd
+         (ipairs
+           (filter #(= :flat (-> (hget hexes $) (?. :tile)))
+             (difference
+               (all-crds hexes)
+               (as-> hs hexes
+                     (some-crds
+                       #(~= :flat (-> (hget hexes $) (?. :tile)))
+                       hs)
+                     (coll-neighbors hs 2)))))]
+    (hset hexes crd {:tile :shallow-water}))
+  map)
 
 (lambda generate []
   (->
-    (generate-empty-map)
-    place-keep
-    create-water
-    create-water-features
-    create-coast-features
-    pave-roads
-    place-villages
-    gen-outer-edge
-    gen-half
+    (gen-shape)
+    seed-mounts
     symmetrize-map
-    (map-to-string codes)))
+    patch-borders
+    to-csv))
 
 {: generate}
 

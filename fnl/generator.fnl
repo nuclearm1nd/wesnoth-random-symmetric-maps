@@ -135,34 +135,45 @@
   map)
 
 (lambda expand-difficult-terrain [{: hexes : half? : on-map? &as map}]
-  (var groups (->> (some-crds half? hexes)
-                   (filter #(= :difficult (?. (hget hexes $) :type)))
-                   (mapv #[$])))
-  (var active-indices (mapv-indexed #$1 groups))
-  (while (~= 0 (length active-indices))
-    (let [idx (draw-random active-indices)
-          group (. groups idx)
-          taken (->> groups
-                     (remove-at-idx idx)
-                     (reduce []
-                       (lambda [acc grp]
-                         (-> acc
-                             (union grp)
-                             (union (coll-neighbors grp 2))))))
-          free (as-> g group
-                   (coll-neighbors g)
-                   (filter half? g)
-                   (filter on-map? g)
-                   (difference g taken))]
-      (if (-> free length (= 0))
-        (set active-indices
-             (filter #(~= idx $) active-indices))
-        (let [crd (draw-random free)]
-          (table.insert (. groups idx) crd)
-          (table.insert (. groups idx) (symmetric crd))))))
-  (each [_ grp (ipairs groups)]
-    (each [_ crd (ipairs grp)]
-      (hset hexes crd {:type :difficult})))
+  (var active-indices [])
+  (let [spacing 2
+        groups (->> (some-crds half? hexes)
+                    (filter #(= :difficult (?. (hget hexes $) :type)))
+                    (mapv #[$]))
+        _ (set active-indices (mapv-indexed #$1 groups))
+        takens
+          (mapv
+            #(->> groups
+                  (remove-at-idx $)
+                  (reduce []
+                    (lambda [acc grp]
+                      (-> acc
+                          (union (coll-neighbors grp spacing))
+                          (union (coll-neighbors
+                                   (mapv symmetric grp) spacing))))))
+            active-indices)]
+    (while (~= 0 (length active-indices))
+      (let [idx (draw-random active-indices)
+            free (as-> g (. groups idx)
+                     (coll-neighbors g)
+                     (filter half? g)
+                     (filter on-map? g)
+                     (difference g (. takens idx)))]
+        (if (-> free length (= 0))
+          (set active-indices
+               (filter #(~= idx $) active-indices))
+          (let [crd (draw-random free)]
+            (table.insert (. groups idx) crd)
+            (table.insert (. groups idx) (symmetric crd))
+            (each [i taken (ipairs takens)]
+              (when (~= i idx)
+                (tset takens i
+                  (-> taken
+                      (union (zone crd spacing))
+                      (union (zone (symmetric crd) spacing))))))))))
+    (each [_ grp (ipairs groups)]
+      (each [_ crd (ipairs grp)]
+        (hset hexes crd {:type :difficult}))))
   map)
 
 (lambda choose-tiles [{: hexes : half? &as map}]

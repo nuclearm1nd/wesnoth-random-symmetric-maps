@@ -1,11 +1,14 @@
 (import-macros {: <<- : in : as->} "../macro/macros")
 
 (local {: filter
+        : remove-at-idx
         : first
         : couples
         : round
         : f-and
         : mapv
+        : mapv-indexed
+        : reduce
         } (wesnoth.require :util))
 
 (local {: difference
@@ -43,9 +46,7 @@
 (lambda symmetric-hex [hexes crd]
   (hset hexes
         (symmetric crd)
-        (->> crd
-             (hget hexes)
-             mirror-hex)))
+        (hget hexes crd)))
 
 (lambda symmetrize-map [{: hexes : half? &as map}]
   (each [_ crd (ipairs (some-crds half? hexes))]
@@ -116,12 +117,12 @@
     (for [q -32 32 1]
       (for [r -32 32 1]
         (when (on-map? [q r])
-          (hset hexes [q r] {:tile :flat}))))
+          (hset hexes [q r] {}))))
     {: hexes
      : half?
      : on-map?}))
 
-(lambda seed-mounts [{: hexes : half? &as map}]
+(lambda seed-difficult-terrain [{: hexes : half? &as map}]
   (var crds (some-crds half? hexes))
   (while (< 0 (length crds))
     (let [crd (draw-random crds)
@@ -129,30 +130,58 @@
           excluded
            (union around
              (mapv symmetric around))]
-      (hset hexes crd {:tile :mountain})
+      (hset hexes crd {:type :difficult})
       (set crds (difference crds excluded))))
   map)
 
-(lambda patch-borders [{: hexes : half? &as map}]
-  (each [_ crd
-         (ipairs
-           (filter #(= :flat (-> (hget hexes $) (?. :tile)))
-             (difference
-               (all-crds hexes)
-               (as-> hs hexes
-                     (some-crds
-                       #(~= :flat (-> (hget hexes $) (?. :tile)))
-                       hs)
-                     (coll-neighbors hs 2)))))]
-    (hset hexes crd {:tile :shallow-water}))
+(lambda expand-difficult-terrain [{: hexes : half? : on-map? &as map}]
+  (var groups (->> (some-crds half? hexes)
+                   (filter #(= :difficult (?. (hget hexes $) :type)))
+                   (mapv #[$])))
+  (var active-indices (mapv-indexed #$1 groups))
+  (while (~= 0 (length active-indices))
+    (let [idx (draw-random active-indices)
+          group (. groups idx)
+          taken (->> groups
+                     (remove-at-idx idx)
+                     (reduce []
+                       (lambda [acc grp]
+                         (-> acc
+                             (union grp)
+                             (union (coll-neighbors grp 2))))))
+          free (as-> g group
+                   (coll-neighbors g)
+                   (filter half? g)
+                   (filter on-map? g)
+                   (difference g taken))]
+      (if (-> free length (= 0))
+        (set active-indices
+             (filter #(~= idx $) active-indices))
+        (let [crd (draw-random free)]
+          (table.insert (. groups idx) crd)
+          (table.insert (. groups idx) (symmetric crd))))))
+  (each [_ grp (ipairs groups)]
+    (each [_ crd (ipairs grp)]
+      (hset hexes crd {:type :difficult})))
+  map)
+
+(lambda choose-tiles [{: hexes : half? &as map}]
+  (let [generator (random-hex-gen difficult-terrain-weights)]
+    (each [_ crd (ipairs (some-crds half? hexes))]
+      (let [type_ (?. (hget hexes crd) :type)]
+        (if (= type_ :difficult)
+          (hset hexes crd {:tile (generator)})
+          (hset hexes crd {:tile :flat})))))
   map)
 
 (lambda generate []
   (->
     (gen-shape)
-    seed-mounts
+    seed-difficult-terrain
     symmetrize-map
-    patch-borders
+    expand-difficult-terrain
+    choose-tiles
+    symmetrize-map
     to-csv))
 
 {: generate}

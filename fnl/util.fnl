@@ -5,10 +5,23 @@
         (table.insert result v)))
     result))
 
+(lambda remove-at-idx [idx arr]
+  (let [result []]
+    (each [i v (ipairs arr)]
+      (if (~= i idx)
+        (table.insert result v)))
+    result))
+
 (lambda mapv [func arr]
   (let [result []]
     (each [_ v (ipairs arr)]
       (table.insert result (func v)))
+    result))
+
+(lambda mapv-indexed [func arr]
+  (let [result []]
+    (each [i v (ipairs arr)]
+      (table.insert result (func i v)))
     result))
 
 (lambda reduce [init f coll]
@@ -97,7 +110,9 @@
     (not (f ...))))
 
 {: filter
+ : remove-at-idx
  : mapv
+ : mapv-indexed
  : reduce
  : partition
  : f-or

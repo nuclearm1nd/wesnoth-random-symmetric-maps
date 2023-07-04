@@ -1,28 +1,20 @@
 (lambda filter [func arr]
-  (let [result []]
-    (each [_ v (ipairs arr)]
-      (if (func v)
-        (table.insert result v)))
-    result))
+  (icollect [_ v (ipairs arr)]
+    (if (func v)
+      v)))
 
 (lambda remove-at-idx [idx arr]
-  (let [result []]
-    (each [i v (ipairs arr)]
-      (if (~= i idx)
-        (table.insert result v)))
-    result))
+  (icollect [i v (ipairs arr)]
+    (if (~= i idx)
+      v)))
 
 (lambda mapv [func arr]
-  (let [result []]
-    (each [_ v (ipairs arr)]
-      (table.insert result (func v)))
-    result))
+  (icollect [_ v (ipairs arr)]
+    (func v)))
 
 (lambda mapv-indexed [func arr]
-  (let [result []]
-    (each [i v (ipairs arr)]
-      (table.insert result (func i v)))
-    result))
+  (icollect [i v (ipairs arr)]
+    (func i v)))
 
 (lambda reduce [init f coll]
   (var result init)

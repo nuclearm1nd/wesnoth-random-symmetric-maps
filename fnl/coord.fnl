@@ -15,17 +15,13 @@
       1))
 
 (lambda to-set [coord-array]
-  (let [result {}]
-    (each [_ [x y] (ipairs coord-array)]
-      (tset result (string.pack "jj" x y) true))
-    result))
+  (collect [_ [x y] (ipairs coord-array)]
+    (string.pack "jj" x y) true))
 
 (lambda to-array [coord-set]
-  (let [result []]
-    (each [k _ (pairs coord-set)]
-      (let [(x y) (string.unpack "jj" k)]
-        (table.insert result [x y])))
-    result))
+  (icollect [k _ (pairs coord-set)]
+    (let [(x y) (string.unpack "jj" k)]
+      [x y])))
 
 (lambda union [arr1 arr2]
   (let [set1 (to-set arr1)

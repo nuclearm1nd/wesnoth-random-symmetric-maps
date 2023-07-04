@@ -136,7 +136,7 @@
 
 (lambda expand-difficult-terrain [{: hexes : half? : on-map? &as map}]
   (var active-indices [])
-  (let [spacing 2
+  (let [spacing 3
         groups (->> (some-crds half? hexes)
                     (filter #(= :difficult (?. (hget hexes $) :type)))
                     (mapv #[$]))
@@ -177,12 +177,11 @@
   map)
 
 (lambda choose-tiles [{: hexes : half? &as map}]
-  (let [generator (random-hex-gen difficult-terrain-weights)]
-    (each [_ crd (ipairs (some-crds half? hexes))]
-      (let [type_ (?. (hget hexes crd) :type)]
-        (if (= type_ :difficult)
-          (hset hexes crd {:tile (generator)})
-          (hset hexes crd {:tile :flat})))))
+  (each [_ crd (ipairs (some-crds half? hexes))]
+    (let [type_ (?. (hget hexes crd) :type)]
+      (if (= type_ :difficult)
+        (hset hexes crd {:tile :cave-wall})
+        (hset hexes crd {:tile :cave-floor}))))
   map)
 
 (lambda generate []

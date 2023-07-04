@@ -18,7 +18,9 @@
    :keep1 "1 Ke"
    :keep2 "2 Ke"
    :off-map "_off^_usr"
-   :cobbles "Rp"})
+   :cobbles "Rp"
+   :cave-wall "Xu"
+   :cave-floor "Uu"})
 
 (local random-landscape-weights
   {:flat 120

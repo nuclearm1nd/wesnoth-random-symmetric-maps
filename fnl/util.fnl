@@ -101,6 +101,22 @@
   (lambda [...]
     (not (f ...))))
 
+(lambda keys [tbl]
+  (icollect [key _ (pairs tbl)]
+    key))
+
+(lambda every [f arr]
+  (accumulate [result true
+               _ v (ipairs arr)
+               &until (not result)]
+    (and result (f v))))
+
+(lambda every-key [f tbl]
+  (accumulate [result true
+               k _ (pairs tbl)
+               &until (not result)]
+    (and result (f k))))
+
 {: filter
  : remove-at-idx
  : mapv
@@ -115,5 +131,8 @@
  : round
  : couples
  : negate
+ : keys
+ : every
+ : every-key
  }
 

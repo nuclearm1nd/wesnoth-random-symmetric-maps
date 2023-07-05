@@ -7,6 +7,8 @@
         : f-or
         : round
         : negate
+        : keys
+        : every-key
         } (wesnoth.require :util))
 
 (lambda sign [x]
@@ -14,28 +16,60 @@
       (> 0 x) -1
       1))
 
+(lambda to-key [[x y]]
+  (string.pack "jj" x y))
+
+(lambda to-crd [strn]
+  (let [(x y) (string.unpack "jj" strn)]
+    [x y]))
+
 (lambda to-set [coord-array]
-  (collect [_ [x y] (ipairs coord-array)]
-    (string.pack "jj" x y) true))
+  (collect [_ crd (ipairs coord-array)]
+    (to-key crd) true))
 
 (lambda to-array [coord-set]
   (icollect [k _ (pairs coord-set)]
-    (let [(x y) (string.unpack "jj" k)]
-      [x y])))
+    (to-crd k)))
 
-(lambda union [arr1 arr2]
-  (let [set1 (to-set arr1)
-        set2 (to-set arr2)]
-    (each [k _ (pairs set2)]
-      (tset set1 k true))
-    (to-array set1)))
+(lambda coord-key-iter [tbl]
+  (if
+    (every-key #(= :number (type $)) tbl)
+      (do
+        (var idx 0)
+        (fn []
+          (set idx (+ 1 idx))
+          (-?> tbl (?. idx) to-key)))
+    (every-key #(= :string (type $)) tbl)
+      (let [ks (keys tbl)]
+        (var idx 0)
+        (fn []
+          (set idx (+ 1 idx))
+          (?. ks idx)))
+    (error "Unexpected table format in coordinate key iterator")))
 
-(lambda difference [arr1 arr2]
-  (let [set1 (to-set arr1)
-        set2 (to-set arr2)]
-    (each [k _ (pairs set2)]
-      (tset set1 k nil))
-    (to-array set1)))
+(lambda union! [set_ ...]
+  (each [_ crds (ipairs [...])]
+    (each [key (coord-key-iter crds)]
+      (tset set_ key true)))
+  set_)
+
+(lambda difference! [set_ ...]
+  (each [_ crds (ipairs [...])]
+    (each [key (coord-key-iter crds)]
+      (tset set_ key nil)))
+  set_)
+
+(lambda union [arr ...]
+  (-> arr
+      to-set
+      (union! ...)
+      to-array))
+
+(lambda difference [arr ...]
+  (-> arr
+      to-set
+      (difference! ...)
+      to-array))
 
 (lambda to-axial [[x y] ?origin]
   (let [[x0 y0] (or ?origin [0 0])
@@ -98,13 +132,13 @@
     (zone crd min)))
 
 (lambda coll-neighbors [coll ?distance]
-  (let [dist (or ?distance 1)]
-    (reduce []
-      (lambda [acc crd]
-        (-> (neighbors crd dist)
-            (difference coll)
-            (union acc)))
-      coll)))
+  (let [dist (or ?distance 1)
+        nhbrs []
+        insert table.insert]
+    (each [_ item (ipairs coll)]
+      (each [_ crd (ipairs (neighbors item dist))]
+        (insert nhbrs crd)))
+    (difference nhbrs coll)))
 
 (lambda line-distance [[line-type constant] [q r]]
   (if
@@ -202,8 +236,12 @@
       (table.unpack
         (mapv negate [...]))]))
 
-{: union
+{: to-set
+ : to-array
+ : union
+ : union!
  : difference
+ : difference!
  : to-oddq
  : to-axial
  : to-new-origin

@@ -7,7 +7,9 @@
   {:require (lambda [str]
               (require (.. "../fnl/" str)))})
 
-(local {: union
+(local {: to-set
+        : to-array
+        : union
         : difference
         : to-axial
         : to-oddq
@@ -30,15 +32,44 @@
 (test Sets
   (to-test-pairs lu.assertItemsEquals
 
+    (union [])
+    []
+
     (union [] [])
+    []
+
+    (union [] [] [])
+    []
+
+    (union [[0 0]] [] [])
+    [[0 0]]
+
+    (union [[0 0] [0 1]]
+           [[0 0]]
+           (to-set [[1 0] [0 1]]))
+    [[0 0] [0 1] [1 0]]
+
+    (union [[1 1] [1 2]]
+           [[1 2] [2 1]])
+    [[1 1] [2 1] [1 2]]
+
+    (difference [])
     []
 
     (difference [] [])
     []
 
-    (union [[1 1] [1 2]]
-           [[1 2] [2 1]])
-    [[1 1] [2 1] [1 2]]
+    (difference [] [] [])
+    []
+
+    (difference [[0 0]] [] [])
+    [[0 0]]
+
+    (difference
+      [[0 0] [0 1] [1 1]]
+      [[0 0]]
+      (to-set [[1 0] [0 1]]))
+    [[1 1]]
 
     (difference
       [[1 1] [1 2]]

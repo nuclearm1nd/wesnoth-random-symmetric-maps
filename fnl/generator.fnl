@@ -13,6 +13,7 @@
 
 (local {: difference
         : union
+        : union!
         : distance
         : zone
         : belt
@@ -122,58 +123,28 @@
      : half?
      : on-map?}))
 
-(lambda seed-difficult-terrain [{: hexes : half? &as map}]
-  (var crds (some-crds half? hexes))
-  (while (< 0 (length crds))
-    (let [crd (draw-random crds)
-          around (zone crd 4)
-          excluded
-           (union around
-             (mapv symmetric around))]
-      (hset hexes crd {:type :difficult})
-      (set crds (difference crds excluded))))
-  map)
-
-(lambda expand-difficult-terrain [{: hexes : half? : on-map? &as map}]
-  (var active-indices [])
-  (let [spacing 3
-        groups (->> (some-crds half? hexes)
-                    (filter #(= :difficult (?. (hget hexes $) :type)))
-                    (mapv #[$]))
-        _ (set active-indices (mapv-indexed #$1 groups))
-        takens
-          (mapv
-            #(->> groups
-                  (remove-at-idx $)
-                  (reduce []
-                    (lambda [acc grp]
-                      (-> acc
-                          (union (coll-neighbors grp spacing))
-                          (union (coll-neighbors
-                                   (mapv symmetric grp) spacing))))))
-            active-indices)]
-    (while (~= 0 (length active-indices))
-      (let [idx (draw-random active-indices)
-            free (as-> g (. groups idx)
-                     (coll-neighbors g)
-                     (filter half? g)
-                     (filter on-map? g)
-                     (difference g (. takens idx)))]
-        (if (-> free length (= 0))
-          (set active-indices
-               (filter #(~= idx $) active-indices))
-          (let [crd (draw-random free)]
-            (table.insert (. groups idx) crd)
-            (table.insert (. groups idx) (symmetric crd))
-            (each [i taken (ipairs takens)]
-              (when (~= i idx)
-                (tset takens i
-                  (-> taken
-                      (union (zone crd spacing))
-                      (union (zone (symmetric crd) spacing))))))))))
-    (each [_ grp (ipairs groups)]
-      (each [_ crd (ipairs grp)]
-        (hset hexes crd {:type :difficult}))))
+(lambda gen-difficult [{: hexes : half? : on-map? &as map}]
+  (var free (some-crds half? hexes))
+  (let [taken {}]
+    (while (< 0 (length free))
+      (let [to-take (math.min (length free)
+                              (math.random 3 7))
+            start (draw-random free)
+            cluster [start]]
+        (for [i 1 (- to-take 1)]
+          (let [available
+                  (as-> c cluster
+                        (coll-neighbors c)
+                        (filter on-map? c)
+                        (difference c taken))
+                new (draw-random available)]
+            (table.insert cluster new)))
+        (each [_ crd (ipairs cluster)]
+          (hset hexes crd {:type :difficult}))
+        (let [new-taken (union cluster
+                          (coll-neighbors cluster 2))]
+          (union! taken new-taken)
+          (set free (difference free new-taken))))))
   map)
 
 (lambda choose-tiles [{: hexes : half? &as map}]
@@ -187,9 +158,7 @@
 (lambda generate []
   (->
     (gen-shape)
-    seed-difficult-terrain
-    symmetrize-map
-    expand-difficult-terrain
+    gen-difficult
     choose-tiles
     symmetrize-map
     to-csv))

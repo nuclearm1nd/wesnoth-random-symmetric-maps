@@ -129,12 +129,15 @@
     {: hexes
      : half?
      : on-map?
-     :line-origin
+     :map-neighbors
+       #(filter (f-and [half? on-map?])
+                (neighbors $1 $2))
+     :path-origin
        (connecting-line [2 0] [10 0])
-     :line-end
+     :path-end
        (filter on-map?
          (connecting-line [1 12] [7 15]))
-     :symmetric-line-end
+     :symmetric-path-end
        (connecting-line [15 4] [15 15])}))
 
 (lambda gen-patch [{: hexes : half? : on-map? &as map}
@@ -164,27 +167,17 @@
           (set free (difference free new-taken))))))
   map)
 
-(lambda gen-lines [{: hexes : half? : on-map?
-                    : line-origin : line-end : symmetric-line-end
-                    &as map}]
-  (let [map-neighbors #(filter (f-and [half? on-map?])
-                               (neighbors $1 $2))
-        origin (draw-random line-origin)
-        end (draw-random line-end)
-        sym-origin (symmetric origin)
-        sym-end (draw-random symmetric-line-end)]
-    (paint-midpoint-displacement
-      origin
-      end
-      {: map-neighbors
-       :f #(hset hexes $ {:road 1})
-       :?iterations 4})
-    (paint-midpoint-displacement
-      sym-origin
-      sym-end
-      {: map-neighbors
-       :f #(hset hexes $ {:road 2})
-       :?iterations 2}))
+(lambda gen-path [{: hexes : map-neighbors &as map}
+                  {: origin-f : end-f : f
+                   : ?iterations : ?distance-func : ?constraint}]
+  (paint-midpoint-displacement
+    (origin-f map)
+    (end-f map)
+    {: map-neighbors
+     :f (partial f hexes)
+     : ?iterations
+     : ?distance-func
+     : ?constraint})
   map)
 
 (lambda choose-tiles [{: hexes : half? &as map}]
@@ -199,17 +192,28 @@
   map)
 
 (lambda generate []
-  (->
-    (gen-shape)
-    (gen-patch {:min-size 2
-                :max-size 6
-                :spacing 2
-                :f (fn [hexes crd idx]
-                     (hset hexes crd {:difficult idx}))})
-    gen-lines
-    choose-tiles
-    symmetrize-map
-    to-csv))
+  (var saved-crd [0 0])
+  (let [draw-n-save #(let [result (draw-random $)]
+                       (set saved-crd result)
+                       result)]
+    (->
+      (gen-shape)
+      (gen-patch {:min-size 2
+                  :max-size 6
+                  :spacing 2
+                  :f (fn [hexes crd idx]
+                       (hset hexes crd {:difficult idx}))})
+      (gen-path {:origin-f #(draw-n-save (. $ :path-origin))
+                 :end-f #(draw-random (. $ :path-end))
+                 :f (fn [hexes crd]
+                      (hset hexes crd {:road 1}))})
+      (gen-path {:origin-f #(symmetric saved-crd)
+                 :end-f #(draw-random (. $ :symmetric-path-end))
+                 :f (fn [hexes crd]
+                      (hset hexes crd {:road 2}))})
+      choose-tiles
+      symmetrize-map
+      to-csv)))
 
 {: generate}
 

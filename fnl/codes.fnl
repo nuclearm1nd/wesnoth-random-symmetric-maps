@@ -20,7 +20,8 @@
    :off-map "_off^_usr"
    :cobbles "Rp"
    :cave-wall "Xu"
-   :cave-floor "Uu"})
+   :cave-floor "Uu"
+   :cave-path "Ur"})
 
 (local random-landscape-weights
   {:flat 120

@@ -58,45 +58,52 @@
   (to-wesnoth-map-csv hexes codes))
 
 (lambda midpoint-displacement
-  [map-neighbors
-   initial-crd
-   destination-crd]
+  [initial-crd
+   destination-crd
+   {: map-neighbors
+    : ?iterations
+    : ?distance-func}]
   (var points [initial-crd destination-crd])
-  (for [i 1 3 1]
-    (let [acc [(. points 1)]
-          add #(table.insert acc $)]
-      (each [_ [crd1 crd2] (ipairs (couples points))]
-        (let [mid (midpoint crd1 crd2)
-              displaced
-                (difference
-                  (map-neighbors mid (- 5 i))
-                  (connecting-line crd1 crd2))]
-          (assert
-            (< 0 (length displaced))
-            "No suitable candidate for displaced point")
-          (add (draw-random displaced))
-          (add crd2)))
-      (set points acc)))
+  (let [iter (or ?iterations 3)
+        df (or ?distance-func #(- 5 $))]
+    (for [i 1 iter 1]
+      (let [acc [(. points 1)]
+            add #(table.insert acc $)]
+        (each [_ [crd1 crd2] (ipairs (couples points))]
+          (let [mid (midpoint crd1 crd2)
+                displaced
+                  (difference
+                    (map-neighbors mid (df i))
+                    (connecting-line crd1 crd2))]
+            (assert
+              (< 0 (length displaced))
+              "No suitable candidate for displaced point")
+            (add (draw-random displaced))
+            (add crd2)))
+        (set points acc))))
   points)
 
 (lambda paint-straight
-  [hexes code constraint crd1 crd2]
-  (each [_ crd (ipairs (connecting-line crd1 crd2))]
-    (when (constraint (hget hexes crd))
-      (hset hexes crd code))))
+  [crd1 crd2 f ?constraint]
+  (let [constraint (or ?constraint #true)]
+    (each [_ crd (ipairs (connecting-line crd1 crd2))]
+     (when (constraint crd)
+       (f crd)))))
 
 (lambda paint-midpoint-displacement
-  [map-neighbors
-   hexes
-   constraint
-   code
-   initial-crd
-   destination-crd]
+  [initial-crd
+   destination-crd
+   {: map-neighbors
+    : f
+    : ?constraint
+    : ?iterations
+    : ?distance-func}]
   (each [_ [crd1 crd2]
-           (->> (midpoint-displacement map-neighbors initial-crd destination-crd)
+           (->> (midpoint-displacement initial-crd destination-crd
+                                       {: map-neighbors : ?iterations : ?distance-func})
                 couples
                 ipairs)]
-    (paint-straight hexes code constraint crd1 crd2)))
+    (paint-straight crd1 crd2 f ?constraint)))
 
 (lambda gen-shape []
   (let
@@ -121,10 +128,17 @@
           (hset hexes [q r] {}))))
     {: hexes
      : half?
-     : on-map?}))
+     : on-map?
+     :line-origin
+       (connecting-line [2 0] [10 0])
+     :line-end
+       (filter on-map?
+         (connecting-line [1 12] [7 15]))
+     :symmetric-line-end
+       (connecting-line [15 4] [15 15])}))
 
 (lambda gen-patch [{: hexes : half? : on-map? &as map}
-                   {: min-size : max-size : spacing : func}]
+                   {: min-size : max-size : spacing : f}]
   (var free (some-crds half? hexes))
   (let [taken {}]
     (while (< 0 (length free))
@@ -141,18 +155,44 @@
                 new (draw-random available)]
             (table.insert cluster new)))
         (each [_ crd (ipairs cluster)]
-          (func hexes crd))
+          (f hexes crd))
         (let [new-taken (union cluster
                           (coll-neighbors cluster spacing))]
           (union! taken new-taken)
           (set free (difference free new-taken))))))
   map)
 
+(lambda gen-lines [{: hexes : half? : on-map?
+                    : line-origin : line-end : symmetric-line-end
+                    &as map}]
+  (let [map-neighbors #(filter (f-and [half? on-map?])
+                               (neighbors $1 $2))
+        origin (draw-random line-origin)
+        end (draw-random line-end)
+        sym-origin (symmetric origin)
+        sym-end (draw-random symmetric-line-end)]
+    (paint-midpoint-displacement
+      origin
+      end
+      {: map-neighbors
+       :f #(hset hexes $ {:type :road})
+       :?iterations 4})
+    (paint-midpoint-displacement
+      sym-origin
+      sym-end
+      {: map-neighbors
+       :f #(hset hexes $ {:type :road})
+       :?iterations 2}))
+  map)
+
 (lambda choose-tiles [{: hexes : half? &as map}]
   (each [_ crd (ipairs (some-crds half? hexes))]
     (let [type_ (?. (hget hexes crd) :type)]
-      (if (= type_ :difficult)
-        (hset hexes crd {:tile :cave-wall})
+      (if
+        (= type_ :road)
+          (hset hexes crd {:tile :cave-path})
+        (= type_ :difficult)
+          (hset hexes crd {:tile :cave-wall})
         (hset hexes crd {:tile :cave-floor}))))
   map)
 
@@ -162,8 +202,9 @@
     (gen-patch {:min-size 2
                 :max-size 6
                 :spacing 2
-                :func (fn [hexes crd]
-                        (hset hexes crd {:type :difficult}))})
+                :f (fn [hexes crd]
+                     (hset hexes crd {:type :difficult}))})
+    gen-lines
     choose-tiles
     symmetrize-map
     to-csv))

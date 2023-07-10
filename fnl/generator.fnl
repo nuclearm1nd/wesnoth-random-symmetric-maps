@@ -140,6 +140,7 @@
 (lambda gen-patch [{: hexes : half? : on-map? &as map}
                    {: min-size : max-size : spacing : f}]
   (var free (some-crds half? hexes))
+  (var patch-idx 1)
   (let [taken {}]
     (while (< 0 (length free))
       (let [to-take (math.min (length free)
@@ -155,7 +156,8 @@
                 new (draw-random available)]
             (table.insert cluster new)))
         (each [_ crd (ipairs cluster)]
-          (f hexes crd))
+          (f hexes crd patch-idx))
+        (set patch-idx (+ 1 patch-idx))
         (let [new-taken (union cluster
                           (coll-neighbors cluster spacing))]
           (union! taken new-taken)
@@ -175,23 +177,23 @@
       origin
       end
       {: map-neighbors
-       :f #(hset hexes $ {:type :road})
+       :f #(hset hexes $ {:road 1})
        :?iterations 4})
     (paint-midpoint-displacement
       sym-origin
       sym-end
       {: map-neighbors
-       :f #(hset hexes $ {:type :road})
+       :f #(hset hexes $ {:road 2})
        :?iterations 2}))
   map)
 
 (lambda choose-tiles [{: hexes : half? &as map}]
-  (each [_ crd (ipairs (some-crds half? hexes))]
-    (let [type_ (?. (hget hexes crd) :type)]
+  (let [get #(?. (hget hexes $1) $2)]
+    (each [_ crd (ipairs (some-crds half? hexes))]
       (if
-        (= type_ :road)
+        (get crd :road)
           (hset hexes crd {:tile :cave-path})
-        (= type_ :difficult)
+        (get crd :difficult)
           (hset hexes crd {:tile :cave-wall})
         (hset hexes crd {:tile :cave-floor}))))
   map)
@@ -202,8 +204,8 @@
     (gen-patch {:min-size 2
                 :max-size 6
                 :spacing 2
-                :f (fn [hexes crd]
-                     (hset hexes crd {:type :difficult}))})
+                :f (fn [hexes crd idx]
+                     (hset hexes crd {:difficult idx}))})
     gen-lines
     choose-tiles
     symmetrize-map

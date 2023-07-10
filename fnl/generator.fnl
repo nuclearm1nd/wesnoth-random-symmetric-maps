@@ -123,12 +123,13 @@
      : half?
      : on-map?}))
 
-(lambda gen-difficult [{: hexes : half? : on-map? &as map}]
+(lambda gen-patch [{: hexes : half? : on-map? &as map}
+                   {: min-size : max-size : spacing : func}]
   (var free (some-crds half? hexes))
   (let [taken {}]
     (while (< 0 (length free))
       (let [to-take (math.min (length free)
-                              (math.random 3 7))
+                              (math.random min-size max-size))
             start (draw-random free)
             cluster [start]]
         (for [i 1 (- to-take 1)]
@@ -140,9 +141,9 @@
                 new (draw-random available)]
             (table.insert cluster new)))
         (each [_ crd (ipairs cluster)]
-          (hset hexes crd {:type :difficult}))
+          (func hexes crd))
         (let [new-taken (union cluster
-                          (coll-neighbors cluster 2))]
+                          (coll-neighbors cluster spacing))]
           (union! taken new-taken)
           (set free (difference free new-taken))))))
   map)
@@ -158,7 +159,11 @@
 (lambda generate []
   (->
     (gen-shape)
-    gen-difficult
+    (gen-patch {:min-size 2
+                :max-size 6
+                :spacing 2
+                :func (fn [hexes crd]
+                        (hset hexes crd {:type :difficult}))})
     choose-tiles
     symmetrize-map
     to-csv))

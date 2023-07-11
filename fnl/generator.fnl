@@ -83,14 +83,14 @@
         (set points acc))))
   points)
 
-(lambda paint-straight
+(lambda path-straight
   [crd1 crd2 f ?constraint]
   (let [constraint (or ?constraint #true)]
     (each [_ crd (ipairs (connecting-line crd1 crd2))]
      (when (constraint crd)
        (f crd)))))
 
-(lambda paint-midpoint-displacement
+(lambda path-midpoint-displacement
   [initial-crd
    destination-crd
    {: map-neighbors
@@ -103,14 +103,58 @@
                                        {: map-neighbors : ?iterations : ?distance-func})
                 couples
                 ipairs)]
-    (paint-straight crd1 crd2 f ?constraint)))
+    (path-straight crd1 crd2 f ?constraint)))
+
+(lambda path-seek
+  [origin
+   end
+   {: map-neighbors
+    : f
+    : ?constraint}]
+  (var finished false)
+  (var current origin)
+  (let [visited {}
+        constraint (or ?constraint #true)
+        weighted-random
+          (fn [dist nhbrs]
+            (let [rndt []]
+              (each [_ new-crd (ipairs nhbrs)]
+                (let [new-dist (distance new-crd end)
+                      cnt (if (< new-dist dist) 16
+                              (= new-dist dist) 4
+                              1)]
+                  (for [i 1 cnt 1]
+                    (table.insert rndt new-crd))))
+              (draw-random rndt)))
+          stack []
+          push #(table.insert stack $)
+          pop #(table.remove stack)]
+    (while (not finished)
+      (union! visited [current])
+      (let [dist (distance current end)]
+        (if (= 0 dist)
+          (do
+            (push current)
+            (set finished true))
+          (let [nhbrs (difference
+                        (filter constraint (map-neighbors current 1))
+                        visited)]
+            (if (= 0 (length nhbrs))
+              (if (= 0 (length stack))
+                (set finished true)
+                (set current (pop)))
+              (do
+                (push current)
+                (set current (weighted-random dist nhbrs))))))))
+    (each [_ crd (ipairs stack)]
+      (f crd))))
 
 (lambda gen-shape []
   (let
     [half?
       (lambda [[q r]]
-        (or (<= 0 q)
-            (<= 1 r)))
+        (or (<= 1 r)
+            (and (= 0 r) (<= 0 q))))
      on-map?
        (line-area
          [:below :- -24
@@ -129,7 +173,7 @@
     {: hexes
      : half?
      : on-map?
-     :map-neighbors
+     :map-neighbors ;; TODO: consider different name
        #(filter (f-and [half? on-map?])
                 (neighbors $1 $2))
      :path-origin
@@ -170,14 +214,27 @@
 (lambda gen-path [{: hexes : map-neighbors &as map}
                   {: origin-f : end-f : f
                    : ?iterations : ?distance-func : ?constraint}]
-  (paint-midpoint-displacement
-    (origin-f map)
-    (end-f map)
-    {: map-neighbors
-     :f (partial f hexes)
-     : ?iterations
-     : ?distance-func
-     : ?constraint})
+  ;; TODO: option to choose
+  ;(path-midpoint-displacement
+  ;  (origin-f map)
+  ;  (end-f map)
+  ;  {: map-neighbors
+  ;   :f (partial f hexes)
+  ;   : ?iterations
+  ;   : ?distance-func
+  ;   : ?constraint})
+  (let [origin (origin-f map)
+        end (end-f map)]
+    (when (and origin end)
+      (path-seek
+        (origin-f map)
+        (end-f map)
+        {: map-neighbors
+         :f (partial f hexes)
+         :?constraint
+           (if ?constraint
+             (partial ?constraint hexes)
+             #true)})))
   map)
 
 (lambda choose-tiles [{: hexes : half? &as map}]
@@ -195,7 +252,18 @@
   (var saved-crd [0 0])
   (let [draw-n-save #(let [result (draw-random $)]
                        (set saved-crd result)
-                       result)]
+                       result)
+        road-constraint (fn [hexes crd]
+                          (-> (hget hexes crd)
+                              (?. :difficult)
+                              (= nil)))
+        road-edge-picker
+          (lambda [rnd-f key]
+            (lambda [{: hexes &as map}]
+              (let [suitable
+                      (filter #(road-constraint hexes $)
+                              (. map key))]
+                (rnd-f suitable))))]
     (->
       (gen-shape)
       (gen-patch {:min-size 2
@@ -203,14 +271,20 @@
                   :spacing 2
                   :f (fn [hexes crd idx]
                        (hset hexes crd {:difficult idx}))})
-      (gen-path {:origin-f #(draw-n-save (. $ :path-origin))
-                 :end-f #(draw-random (. $ :path-end))
+      (gen-path {:origin-f
+                   (road-edge-picker draw-n-save :path-origin)
+                 :end-f
+                   (road-edge-picker draw-random :path-end)
                  :f (fn [hexes crd]
-                      (hset hexes crd {:road 1}))})
-      (gen-path {:origin-f #(symmetric saved-crd)
-                 :end-f #(draw-random (. $ :symmetric-path-end))
+                      (hset hexes crd {:road 1}))
+                 :?constraint road-constraint})
+      (gen-path {:origin-f
+                   #(symmetric saved-crd)
+                 :end-f
+                   (road-edge-picker draw-random :symmetric-path-end)
                  :f (fn [hexes crd]
-                      (hset hexes crd {:road 2}))})
+                      (hset hexes crd {:road 2}))
+                 :?constraint road-constraint})
       choose-tiles
       symmetrize-map
       to-csv)))

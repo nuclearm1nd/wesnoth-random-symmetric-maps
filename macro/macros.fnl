@@ -106,6 +106,12 @@
 (local pairwise
   (partial groupwise 2))
 
+(fn early [cond res]
+  (let [g (gensym)]
+    `(when ,cond
+       (let [,g ,res]
+         (lua ,(.. "return " (tostring g)))))))
+
 {: if=
  : in
  : set-methods
@@ -115,5 +121,6 @@
  : cond->
  : groupwise
  : pairwise
+ : early
  }
 

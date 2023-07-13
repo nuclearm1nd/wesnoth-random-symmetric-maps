@@ -22,7 +22,7 @@
   (let [hex (hget hexes crd)]
     (if hex
       (merge! hex tbl)
-      (hset hexes crd tbl))))
+      (hset hexes crd (merge! {} tbl)))))
 
 (lambda some-crds [criterium hexes]
   (let [result []]

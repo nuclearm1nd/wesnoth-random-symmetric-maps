@@ -243,17 +243,23 @@
   (let [hex #(hget hexes $1)
         set-tile #(hset hexes $1 {:tile $2})]
     (each [_ crd (ipairs (some-crds half? hexes))]
-      (let [{: impassable : water : road} (hex crd)]
+      (let [{: impassable : water : road : difficult} (hex crd)]
         (if
           impassable
-            (set-tile crd :cave-wall)
+            (if water
+              (set-tile crd :deep-water)
+              (set-tile crd :cave-wall))
           (and road water)
             (set-tile crd :ford)
           road
-            (set-tile crd :cave-path)
+            (set-tile crd :ancient-stone)
           water
-            (set-tile crd :deep-water)
-          (set-tile crd :cave-floor)))))
+            (if difficult
+              (set-tile crd :deep-water)
+              (set-tile crd (draw-random [:shallow-water :swamp :coastal-reef])))
+          (if difficult
+            (set-tile crd (draw-random [:cave-floor :cave-rock :cave-mushroom :cave-forest]))
+            (set-tile crd :cave-path))))))
   map)
 
 (lambda generate []
@@ -275,11 +281,16 @@
                 (rnd-f suitable))))]
     (->
       (gen-shape)
-      (gen-patch {:min-size 2
-                  :max-size 6
-                  :spacing 2
+      (gen-patch {:min-size 3
+                  :max-size 7
+                  :spacing 4
                   :f (fn [hexes crd idx]
                        (hmerge hexes crd {:impassable idx}))})
+      (gen-patch {:min-size 1
+                  :max-size 5
+                  :spacing 1
+                  :f (fn [hexes crd idx]
+                       (hmerge hexes crd {:difficult idx}))})
       (gen-path {:algorithm :midpoint-displacement
                  :origin-f
                    (edge-picker draw-n-save :path-origin)

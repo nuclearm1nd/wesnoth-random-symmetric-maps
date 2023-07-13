@@ -22,7 +22,12 @@
    :cobbles "Rp"
    :cave-wall "Xu"
    :cave-floor "Uu"
-   :cave-path "Ur"})
+   :cave-path "Ur"
+   :cave-rock "Uh"
+   :cave-road "Urb"
+   :cave-mushroom "Uu^Tf"
+   :cave-forest "Ur^Fdw"
+   :ancient-stone "Ias"})
 
 (local random-landscape-weights
   {:flat 120

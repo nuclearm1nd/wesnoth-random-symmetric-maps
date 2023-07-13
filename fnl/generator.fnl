@@ -1,4 +1,4 @@
-(import-macros {: <<- : in : as->} "../macro/macros")
+(import-macros {: <<- : in : as-> : if=} "../macro/macros")
 
 (local {: filter
         : remove-at-idx
@@ -173,9 +173,6 @@
     {: hexes
      : half?
      : on-map?
-     :map-neighbors ;; TODO: consider different name
-       #(filter (f-and [half? on-map?])
-                (neighbors $1 $2))
      :path-origin
        (connecting-line [2 0] [10 0])
      :path-end
@@ -188,7 +185,10 @@
                    {: min-size : max-size : spacing : f}]
   (var free (some-crds half? hexes))
   (var patch-idx 1)
-  (let [taken {}]
+  (let [taken {}
+        map-coll-nhbrs
+          #(filter (f-and [half? on-map?])
+                   (coll-neighbors $1 $2))]
     (while (< 0 (length free))
       (let [to-take (math.min (length free)
                               (math.random min-size max-size))
@@ -196,10 +196,9 @@
             cluster [start]]
         (for [i 1 (- to-take 1)]
           (let [available
-                  (as-> c cluster
-                        (coll-neighbors c)
-                        (filter on-map? c)
-                        (difference c taken))
+                  (difference
+                    (map-coll-nhbrs cluster)
+                    taken)
                 new (draw-random available)]
             (table.insert cluster new)))
         (each [_ crd (ipairs cluster)]
@@ -211,30 +210,32 @@
           (set free (difference free new-taken))))))
   map)
 
-(lambda gen-path [{: hexes : map-neighbors &as map}
-                  {: origin-f : end-f : f
+(lambda gen-path [{: hexes : half? : on-map? &as map}
+                  {: algorithm : origin-f : end-f : f
                    : ?iterations : ?distance-func : ?constraint}]
-  ;; TODO: option to choose
-  ;(path-midpoint-displacement
-  ;  (origin-f map)
-  ;  (end-f map)
-  ;  {: map-neighbors
-  ;   :f (partial f hexes)
-  ;   : ?iterations
-  ;   : ?distance-func
-  ;   : ?constraint})
   (let [origin (origin-f map)
         end (end-f map)]
     (when (and origin end)
-      (path-seek
-        (origin-f map)
-        (end-f map)
-        {: map-neighbors
-         :f (partial f hexes)
-         :?constraint
-           (if ?constraint
-             (partial ?constraint hexes)
-             #true)})))
+      (let [map-neighbors
+              #(filter (f-and [half? on-map?])
+                       (neighbors $1 $2))
+            inner-f (partial f hexes)
+            constraint
+              (if ?constraint
+                (partial ?constraint hexes)
+                #true)
+            path-f (if= algorithm
+                     :seek path-seek
+                     :midpoint-displacement path-midpoint-displacement
+                     (error (.. "unknown path algorithm " algorithm)))]
+        (path-f
+          origin
+          end
+          {: map-neighbors
+           :f inner-f
+           :?constraint constraint
+           : ?iterations
+           : ?distance-func}))))
   map)
 
 (lambda choose-tiles [{: hexes : half? &as map}]
@@ -271,14 +272,16 @@
                   :spacing 2
                   :f (fn [hexes crd idx]
                        (hset hexes crd {:difficult idx}))})
-      (gen-path {:origin-f
+      (gen-path {:algorithm :seek
+                 :origin-f
                    (road-edge-picker draw-n-save :path-origin)
                  :end-f
                    (road-edge-picker draw-random :path-end)
                  :f (fn [hexes crd]
                       (hset hexes crd {:road 1}))
                  :?constraint road-constraint})
-      (gen-path {:origin-f
+      (gen-path {:algorithm :seek
+                 :origin-f
                    #(symmetric saved-crd)
                  :end-f
                    (road-edge-picker draw-random :symmetric-path-end)

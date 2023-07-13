@@ -117,6 +117,11 @@
                &until (not result)]
     (and result (f k))))
 
+(lambda merge! [t1 t2]
+  (each [k v (pairs t2)]
+    (tset t1 k v))
+  t1)
+
 {: filter
  : remove-at-idx
  : mapv
@@ -134,5 +139,6 @@
  : keys
  : every
  : every-key
+ : merge!
  }
 

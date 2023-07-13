@@ -27,6 +27,7 @@
 
 (local {: hget
         : hset
+        : hmerge
         : all-crds
         : some-crds
         : to-wesnoth-map-csv
@@ -239,14 +240,20 @@
   map)
 
 (lambda choose-tiles [{: hexes : half? &as map}]
-  (let [get #(?. (hget hexes $1) $2)]
+  (let [hex #(hget hexes $1)
+        set-tile #(hset hexes $1 {:tile $2})]
     (each [_ crd (ipairs (some-crds half? hexes))]
-      (if
-        (get crd :road)
-          (hset hexes crd {:tile :cave-path})
-        (get crd :difficult)
-          (hset hexes crd {:tile :cave-wall})
-        (hset hexes crd {:tile :cave-floor}))))
+      (let [{: impassable : water : road} (hex crd)]
+        (if
+          impassable
+            (set-tile crd :cave-wall)
+          (and road water)
+            (set-tile crd :ford)
+          road
+            (set-tile crd :cave-path)
+          water
+            (set-tile crd :deep-water)
+          (set-tile crd :cave-floor)))))
   map)
 
 (lambda generate []
@@ -254,15 +261,16 @@
   (let [draw-n-save #(let [result (draw-random $)]
                        (set saved-crd result)
                        result)
-        road-constraint (fn [hexes crd]
-                          (-> (hget hexes crd)
-                              (?. :difficult)
-                              (= nil)))
-        road-edge-picker
+        impassable-constraint
+          (fn [hexes crd]
+            (-> (hget hexes crd)
+                (?. :impassable)
+                (= nil)))
+        edge-picker
           (lambda [rnd-f key]
             (lambda [{: hexes &as map}]
               (let [suitable
-                      (filter #(road-constraint hexes $)
+                      (filter #(impassable-constraint hexes $)
                               (. map key))]
                 (rnd-f suitable))))]
     (->
@@ -271,23 +279,37 @@
                   :max-size 6
                   :spacing 2
                   :f (fn [hexes crd idx]
-                       (hset hexes crd {:difficult idx}))})
+                       (hmerge hexes crd {:impassable idx}))})
+      (gen-path {:algorithm :midpoint-displacement
+                 :origin-f
+                   (edge-picker draw-n-save :path-origin)
+                 :end-f
+                   (edge-picker draw-random :path-end)
+                 :f (fn [hexes crd]
+                      (hmerge hexes crd {:water 1}))})
+      (gen-path {:algorithm :midpoint-displacement
+                 :origin-f
+                   #(symmetric saved-crd)
+                 :end-f
+                   (edge-picker draw-random :path-end)
+                 :f (fn [hexes crd]
+                      (hmerge hexes crd {:water 2}))})
       (gen-path {:algorithm :seek
                  :origin-f
-                   (road-edge-picker draw-n-save :path-origin)
+                   (edge-picker draw-n-save :path-origin)
                  :end-f
-                   (road-edge-picker draw-random :path-end)
+                   (edge-picker draw-random :path-end)
                  :f (fn [hexes crd]
-                      (hset hexes crd {:road 1}))
-                 :?constraint road-constraint})
+                      (hmerge hexes crd {:road 1}))
+                 :?constraint impassable-constraint})
       (gen-path {:algorithm :seek
                  :origin-f
                    #(symmetric saved-crd)
                  :end-f
-                   (road-edge-picker draw-random :symmetric-path-end)
+                   (edge-picker draw-random :symmetric-path-end)
                  :f (fn [hexes crd]
-                      (hset hexes crd {:road 2}))
-                 :?constraint road-constraint})
+                      (hmerge hexes crd {:road 2}))
+                 :?constraint impassable-constraint})
       choose-tiles
       symmetrize-map
       to-csv)))

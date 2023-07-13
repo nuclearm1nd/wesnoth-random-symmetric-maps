@@ -1,3 +1,6 @@
+(local {: merge!
+        } (wesnoth.require :util))
+
 (local {: to-axial
         : to-oddq
         } (wesnoth.require :coord))
@@ -14,6 +17,12 @@
   (->> (hget hexes crd)
        func
        (hset hexes crd)))
+
+(lambda hmerge [hexes crd tbl]
+  (let [hex (hget hexes crd)]
+    (if hex
+      (merge! hex tbl)
+      (hset hexes crd tbl))))
 
 (lambda some-crds [criterium hexes]
   (let [result []]
@@ -70,6 +79,7 @@
 {: hget
  : hset
  : hmod
+ : hmerge
  : all-crds
  : some-crds
  : oddq-bounds

@@ -8,6 +8,7 @@
    :impassable-mountain "Mm^Xm"
    :ford "Wwf"
    :shallow-water "Ww"
+   :deep-water "Wo"
    :coastal-reef "Wwr"
    :sand "Ds"
    :fungus "Gg^Tf"

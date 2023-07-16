@@ -206,7 +206,10 @@
           (f hexes crd patch-idx))
         (set patch-idx (+ 1 patch-idx))
         (let [new-taken (union cluster
-                          (coll-neighbors cluster spacing))]
+                          (coll-neighbors cluster spacing)
+                          (coll-neighbors
+                            (mapv symmetric cluster)
+                            spacing))]
           (union! taken new-taken)
           (set free (difference free new-taken))))))
   map)
@@ -255,11 +258,11 @@
             (set-tile crd :ancient-stone)
           water
             (if difficult
-              (set-tile crd :deep-water)
-              (set-tile crd (draw-random [:shallow-water :swamp :coastal-reef])))
+              (set-tile crd (draw-random [:shallow-water :swamp :coastal-reef :swamp-mushroom]))
+              (set-tile crd (draw-random [:ford :swamp :coastal-reef])))
           (if difficult
             (set-tile crd (draw-random [:cave-floor :cave-rock :cave-mushroom :cave-forest]))
-            (set-tile crd :cave-path))))))
+            (set-tile crd (draw-random [:cave-path :regular-dirt :dry-dirt])))))))
   map)
 
 (lambda generate []
@@ -287,8 +290,8 @@
                   :f (fn [hexes crd idx]
                        (hmerge hexes crd {:impassable idx}))})
       (gen-patch {:min-size 1
-                  :max-size 5
-                  :spacing 1
+                  :max-size 4
+                  :spacing 2
                   :f (fn [hexes crd idx]
                        (hmerge hexes crd {:difficult idx}))})
       (gen-path {:algorithm :midpoint-displacement
@@ -302,7 +305,7 @@
                  :origin-f
                    #(symmetric saved-crd)
                  :end-f
-                   (edge-picker draw-random :path-end)
+                   (edge-picker draw-random :symmetric-path-end)
                  :f (fn [hexes crd]
                       (hmerge hexes crd {:water 2}))})
       (gen-path {:algorithm :seek

@@ -1,7 +1,7 @@
 (local codes
   {:village "Gg^Vh"
    :forest "Gg^Fds"
-   :flat "Gg"
+   :grass "Gg"
    :hill "Hh"
    :hill-forest "Hh^Fp"
    :mountain "Mm"
@@ -14,6 +14,7 @@
    :fungus "Gg^Tf"
    :hill-fungus "Hh^Tf"
    :swamp "Ss"
+   :swamp-mushroom "Ss^Tf"
    :mud "Sm"
    :encampment "Ce"
    :keep1 "1 Ke"
@@ -21,13 +22,17 @@
    :off-map "_off^_usr"
    :cobbles "Rp"
    :cave-wall "Xu"
+   :mine-wall "Xuc"
    :cave-floor "Uu"
    :cave-path "Ur"
    :cave-rock "Uh"
    :cave-road "Urb"
    :cave-mushroom "Uu^Tf"
    :cave-forest "Ur^Fdw"
-   :ancient-stone "Ias"})
+   :chasm "Qxu"
+   :ancient-stone "Ias"
+   :regular-dirt "Re"
+   :dry-dirt "Rd"})
 
 (local random-landscape-weights
   {:flat 120

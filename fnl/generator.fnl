@@ -23,6 +23,7 @@
         : coll-neighbors
         : symmetric
         : line-area
+        : to-set
         } (wesnoth.require :coord))
 
 (local {: hget
@@ -179,13 +180,20 @@
        (connecting-line [15 4] [15 15])}))
 
 (lambda gen-patch [{: hexes : half? : on-map? &as map}
-                   {: min-size : max-size : spacing : f}]
-  (var free (some-crds half? hexes))
+                   {: min-size : max-size : spacing : f : ?exclude}]
   (var patch-idx 1)
-  (let [taken {}
+  (let [exclude (if ?exclude
+                  (partial ?exclude hexes)
+                  #false)
+        taken (->> (some-crds half? hexes)
+                   (filter exclude)
+                   to-set)
         map-coll-nhbrs
           #(filter (f-and [half? on-map?])
                    (coll-neighbors $1 $2))]
+    (var free (difference
+                (some-crds half? hexes)
+                taken))
     (while (< 0 (length free))
       (let [to-take (math.min (length free)
                               (math.random min-size max-size))
@@ -243,13 +251,25 @@
         set-tile #(hset hexes $1 {:tile $2})
         impassable-tbl {}
         impassable-chooser
-          (random-hex-gen {:cave-wall 2 :mine-wall 1 :ancient-stone-wall 1})
+          (random-hex-gen {:cave-wall 2
+                           :mine-wall 1
+                           :ancient-stone-wall 1})
         difficult-water-chooser
-          (random-hex-gen {:shallow-water 1 :swamp 2 :coastal-reef 1 :swamp-mushroom 2})
+          (random-hex-gen {:shallow-water 1
+                           :swamp 2
+                           :coastal-reef 1
+                           :swamp-mushroom 2})
         easy-water-chooser
-          (random-hex-gen {:ford 3 :swamp 2 :coastal-reef 1})
+          (random-hex-gen {:ford 3
+                           :swamp 2
+                           :coastal-reef 1})
         difficult-terrain-chooser
-          (random-hex-gen {:cave-floor 3 :cave-rock 2 :cave-mushroom 1 :cave-forest 3})
+          (random-hex-gen {:cave-floor 3
+                           :cave-rock 2
+                           :cave-mushroom 1
+                           :cave-forest 3
+                           :dry-hill 3
+                           :dry-hill-forest 1})
         flat-terrain-chooser
           (random-hex-gen {:cave-path 1 :regular-dirt 2 :dry-dirt 2})]
     (each [_ crd (ipairs (some-crds half? hexes))]
@@ -301,11 +321,6 @@
                   :spacing 4
                   :f (fn [hexes crd idx]
                        (hmerge hexes crd {:impassable idx}))})
-      (gen-patch {:min-size 1
-                  :max-size 4
-                  :spacing 2
-                  :f (fn [hexes crd idx]
-                       (hmerge hexes crd {:difficult idx}))})
       (gen-path {:algorithm :midpoint-displacement
                  :origin-f
                    (edge-picker draw-n-save :path-origin)
@@ -336,6 +351,17 @@
                  :f (fn [hexes crd]
                       (hmerge hexes crd {:road 2}))
                  :?constraint impassable-constraint})
+      (gen-patch {:min-size 1
+                  :max-size 4
+                  :spacing 2
+                  :f (fn [hexes crd idx]
+                       (hmerge hexes crd {:difficult idx}))
+                  :?exclude
+                    (fn [hexes crd]
+                      (let [hex (hget hexes crd)
+                            impassable (?. hex :impassable)
+                            road (?. hex :road)]
+                        (or impassable road)))})
       choose-tiles
       symmetrize-map
       to-csv)))

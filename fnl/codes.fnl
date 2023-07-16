@@ -4,6 +4,8 @@
    :grass "Gg"
    :hill "Hh"
    :hill-forest "Hh^Fp"
+   :dry-hill "Hhd"
+   :dry-hill-forest "Hhd^Fdw"
    :mountain "Mm"
    :impassable-mountain "Mm^Xm"
    :ford "Wwf"

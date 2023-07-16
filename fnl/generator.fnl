@@ -35,10 +35,6 @@
 
 (local {: codes
         : random-hex-gen
-        : random-landscape-weights
-        : water-features-weights
-        : coast-features-weights
-        : difficult-terrain-weights
         : mirror-hex
         } (wesnoth.require :codes))
 
@@ -244,25 +240,41 @@
 
 (lambda choose-tiles [{: hexes : half? &as map}]
   (let [hex #(hget hexes $1)
-        set-tile #(hset hexes $1 {:tile $2})]
+        set-tile #(hset hexes $1 {:tile $2})
+        impassable-tbl {}
+        impassable-chooser
+          (random-hex-gen {:cave-wall 2 :mine-wall 1 :ancient-stone-wall 1})
+        difficult-water-chooser
+          (random-hex-gen {:shallow-water 1 :swamp 2 :coastal-reef 1 :swamp-mushroom 2})
+        easy-water-chooser
+          (random-hex-gen {:ford 3 :swamp 2 :coastal-reef 1})
+        difficult-terrain-chooser
+          (random-hex-gen {:cave-floor 3 :cave-rock 2 :cave-mushroom 1 :cave-forest 3})
+        flat-terrain-chooser
+          (random-hex-gen {:cave-path 1 :regular-dirt 2 :dry-dirt 2})]
     (each [_ crd (ipairs (some-crds half? hexes))]
       (let [{: impassable : water : road : difficult} (hex crd)]
         (if
           impassable
             (if water
               (set-tile crd :deep-water)
-              (set-tile crd :cave-wall))
+              (let [tile (?. impassable-tbl impassable)]
+                (if tile
+                  (set-tile crd tile)
+                  (let [new-tile (impassable-chooser)]
+                    (set-tile crd new-tile)
+                    (tset impassable-tbl impassable new-tile)))))
           (and road water)
             (set-tile crd :ford)
           road
             (set-tile crd :ancient-stone)
           water
             (if difficult
-              (set-tile crd (draw-random [:shallow-water :swamp :coastal-reef :swamp-mushroom]))
-              (set-tile crd (draw-random [:ford :swamp :coastal-reef])))
+              (set-tile crd (difficult-water-chooser))
+              (set-tile crd (easy-water-chooser)))
           (if difficult
-            (set-tile crd (draw-random [:cave-floor :cave-rock :cave-mushroom :cave-forest]))
-            (set-tile crd (draw-random [:cave-path :regular-dirt :dry-dirt])))))))
+            (set-tile crd (difficult-terrain-chooser))
+            (set-tile crd (flat-terrain-chooser)))))))
   map)
 
 (lambda generate []

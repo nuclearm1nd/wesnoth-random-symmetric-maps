@@ -24,6 +24,7 @@
         : line-area-border
         : connecting-line
         : constraint-difference
+        : line-collection-distance
         } (require :../fnl/coord))
 
 (set package.path (.. package.path ";.luamodules/share/lua/5.4/luaunit.lua"))
@@ -563,6 +564,36 @@
 
       (constraint [1 5])
       true
+    )))
+
+(test LineCollectionDistance
+  (let [dist-fn
+          (line-collection-distance
+            [:+ :-  0
+             :- :- 11
+             :+ :|  0
+             :- :|  6])]
+    (to-test-pairs lu.assertEquals
+      (dist-fn [0 0])
+      0
+
+      (dist-fn [0 1])
+      0
+
+      (dist-fn [1 0])
+      1
+
+      (dist-fn [4 2])
+      0
+
+      (dist-fn [1 1])
+      1
+
+      (dist-fn [2 3])
+      2
+
+      (dist-fn [3 4])
+      3
     )))
 
 (os.exit (lu.LuaUnit.run))

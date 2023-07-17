@@ -154,7 +154,7 @@
                    {: min-size : max-size : spacing : f : ?exclude}]
   (var patch-idx 1)
   (let [exclude (if ?exclude
-                  (partial ?exclude hexes)
+                  (partial ?exclude map)
                   #false)
         taken (->> (some-crds half? hexes)
                    (filter exclude)
@@ -201,7 +201,7 @@
             inner-f (partial f hexes)
             constraint
               (if ?constraint
-                (partial ?constraint hexes)
+                (partial ?constraint map)
                 #true)
             path-f (if= algorithm
                      :seek path-seek
@@ -275,24 +275,26 @@
                        (set saved-crd result)
                        result)
         impassable-constraint
-          (fn [hexes crd]
+          (fn [{: hexes} crd]
             (-> (hget hexes crd)
                 (?. :impassable)
                 (= nil)))
         edge-picker
           (lambda [rnd-f key]
-            (lambda [{: hexes &as map}]
+            (lambda [map]
               (let [suitable
-                      (filter #(impassable-constraint hexes $)
+                      (filter #(impassable-constraint map $)
                               (. map key))]
                 (rnd-f suitable))))]
     (->
       (gen-shape size)
-      (gen-patch {:min-size 3
-                  :max-size 7
+      (gen-patch {:min-size 2
+                  :max-size (+ 1 size)
                   :spacing 4
                   :f (fn [hexes crd idx]
-                       (hmerge hexes crd {:impassable idx}))})
+                       (hmerge hexes crd {:impassable idx}))
+                  :?exclude (fn [{: dist-from-border} crd]
+                              (>= 2 (dist-from-border crd)))})
       (gen-path {:algorithm :midpoint-displacement
                  :origin-f
                    (edge-picker draw-n-save :path-origin)
@@ -324,12 +326,12 @@
                       (hmerge hexes crd {:road 2}))
                  :?constraint impassable-constraint})
       (gen-patch {:min-size 1
-                  :max-size 4
+                  :max-size size
                   :spacing 2
                   :f (fn [hexes crd idx]
                        (hmerge hexes crd {:difficult idx}))
                   :?exclude
-                    (fn [hexes crd]
+                    (fn [{: hexes} crd]
                       (let [hex (hget hexes crd)
                             impassable (?. hex :impassable)
                             road (?. hex :road)]

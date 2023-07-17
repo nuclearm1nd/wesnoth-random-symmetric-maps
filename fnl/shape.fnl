@@ -6,6 +6,7 @@
         : line-area
         : line-area-border
         : line-constraint
+        : line-collection-distance
         } (wesnoth.require :coord))
 
 (local {: hget
@@ -30,22 +31,25 @@
         :below :\ (-> size (- 1) (* 4))
         :above :\ (-> size (- 1) (* 4) -)
         ]
-     on-map? (line-area border-lines true)
+     on-map? (line-area border-lines false)
      hexes []
-     bounds (* size 7)]
+     bounds (* size 6)]
     (for [q (- bounds) bounds 1]
       (for [r (- bounds) bounds 1]
         (when (on-map? [q r])
           (hset hexes [q r] {}))))
     (let
-      [border-hexes
-        (filter
-          (f-and [half?
-                  (line-area-border border-lines)])
-          (all-crds hexes))]
+      [all-hexes (all-crds hexes)
+       dist-from-border (line-collection-distance border-lines)
+       border-hexes
+         (filter
+           (f-and [half?
+                   #(>= 1 (dist-from-border $))])
+           all-hexes)]
       {: hexes
        : half?
        : on-map?
+       : dist-from-border
        :path-origin
          (connecting-line [2 0] [(-> size (- 1) (* 4) (- 2)) 0])
        :lower-path-end

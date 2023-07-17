@@ -39,6 +39,9 @@
         : mirror-hex
         } (wesnoth.require :codes))
 
+(local {: gen-shape
+        } (wesnoth.require :shape))
+
 (lambda draw-random [t]
   (. t (math.random (length t))))
 
@@ -146,38 +149,6 @@
                 (set current (weighted-random dist nhbrs))))))))
     (each [_ crd (ipairs stack)]
       (f crd))))
-
-(lambda gen-shape []
-  (let
-    [half?
-      (lambda [[q r]]
-        (or (<= 1 r)
-            (and (= 0 r) (<= 0 q))))
-     on-map?
-       (line-area
-         [:below :- -24
-          :above :-  24
-          :right :| -16
-          :left  :|  16
-          :below :/ -16
-          :above :/  16
-          :below :\  12
-          :above :\ -12])
-     hexes []]
-    (for [q -32 32 1]
-      (for [r -32 32 1]
-        (when (on-map? [q r])
-          (hset hexes [q r] {}))))
-    {: hexes
-     : half?
-     : on-map?
-     :path-origin
-       (connecting-line [2 0] [10 0])
-     :path-end
-       (filter on-map?
-         (connecting-line [1 12] [7 15]))
-     :symmetric-path-end
-       (connecting-line [15 4] [15 15])}))
 
 (lambda gen-patch [{: hexes : half? : on-map? &as map}
                    {: min-size : max-size : spacing : f : ?exclude}]

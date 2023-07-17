@@ -19,8 +19,7 @@
    :swamp-mushroom "Ss^Tf"
    :mud "Sm"
    :encampment "Ce"
-   :keep1 "1 Ke"
-   :keep2 "2 Ke"
+   :keep "Ke"
    :off-map "_off^_usr"
    :cobbles "Rp"
    :cave-wall "Xu"
@@ -35,7 +34,14 @@
    :chasm "Qxu"
    :ancient-stone "Ias"
    :regular-dirt "Re"
-   :dry-dirt "Rd"})
+   :dry-dirt "Rd"
+   :human-ruined-castle "Chr"
+   :human-ruined-keep "Khr"
+   :sunken-human-ruined-castle "Chw"
+   :sunken-human-ruined-keep "Khw"
+   :swamp-human-ruined-castle "Chs"
+   :swamp-human-ruined-keep "Khs"
+   })
 
 (lambda random-hex-gen [weights]
   (var gap-table [])

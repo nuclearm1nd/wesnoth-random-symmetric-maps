@@ -58,6 +58,13 @@
 (lambda to-csv [{: hexes}]
   (to-wesnoth-map-csv hexes codes))
 
+(lambda set-helpers [{: half? : on-map? &as map}]
+  (tset map
+    :map-coll-nhbrs
+      #(filter (f-and [half? on-map?])
+               (coll-neighbors $1 $2)))
+  map)
+
 (lambda midpoint-displacement
   [initial-crd
    destination-crd
@@ -150,7 +157,7 @@
     (each [_ crd (ipairs stack)]
       (f crd))))
 
-(lambda gen-patch [{: hexes : half? : on-map? &as map}
+(lambda gen-patch [{: hexes : half? : on-map? : map-coll-nhbrs &as map}
                    {: min-size : max-size : spacing : f : ?exclude}]
   (var patch-idx 1)
   (let [exclude (if ?exclude
@@ -158,10 +165,7 @@
                   #false)
         taken (->> (some-crds half? hexes)
                    (filter exclude)
-                   to-set)
-        map-coll-nhbrs
-          #(filter (f-and [half? on-map?])
-                   (coll-neighbors $1 $2))]
+                   to-set)]
     (var free (difference
                 (some-crds half? hexes)
                 taken))
@@ -217,6 +221,32 @@
            : ?distance-func}))))
   map)
 
+(lambda place-keep [{: hexes : half? : size : map-coll-nhbrs
+                     : dist-from-border : dist-from-centerline &as map}
+                    {: ?keepsize-f : ?impassable-gap : ?border-distance : ?centerline-distance-f}]
+  (let [keepsize-f (or ?keepsize-f #(+ 1 $))
+        centerline-distance-f (or ?centerline-distance-f #(* $ 2))
+        impassable-gap (or ?impassable-gap 2)
+        border-distance (or ?border-distance 2)
+        constraint (f-and [#(< border-distance (dist-from-border $))
+                           #(< (centerline-distance-f size) (dist-from-centerline $))])
+        eligible
+          (->> (some-crds half? hexes)
+               (filter constraint))
+        keep (draw-random eligible)]
+    (hmerge hexes keep {:keep 1})
+    (let [cluster [keep]]
+      (for [i 1 (keepsize-f size)]
+        (let [available
+                (filter constraint
+                  (map-coll-nhbrs cluster))
+              new (draw-random available)]
+          (table.insert cluster new)
+          (hmerge hexes new {:castle 1})))
+      (each [_ crd (ipairs (map-coll-nhbrs cluster impassable-gap))]
+        (hmerge hexes crd {:no-impassable true}))))
+  map)
+
 (lambda choose-tiles [{: hexes : half? &as map}]
   (let [hex #(hget hexes $1)
         set-tile #(hset hexes $1 {:tile $2})
@@ -244,8 +274,14 @@
         flat-terrain-chooser
           (random-hex-gen {:cave-path 1 :regular-dirt 2 :dry-dirt 2})]
     (each [_ crd (ipairs (some-crds half? hexes))]
-      (let [{: impassable : water : road : difficult} (hex crd)]
+      (let [{: impassable : water : road : difficult : keep : castle} (hex crd)]
         (if
+          keep
+            (set-tile crd :human-ruined-keep)
+          castle
+            (if water
+              (set-tile crd :sunken-human-ruined-castle)
+              (set-tile crd :human-ruined-castle))
           impassable
             (if water
               (set-tile crd :deep-water)
@@ -288,13 +324,21 @@
                 (rnd-f suitable))))]
     (->
       (gen-shape size)
+      set-helpers
+      (place-keep
+        {:?keepsize-f #(+ 1 $)
+         :?impassable-gap 3
+         :?border-distance 2})
       (gen-patch {:min-size 2
                   :max-size (+ 1 size)
                   :spacing 4
                   :f (fn [hexes crd idx]
                        (hmerge hexes crd {:impassable idx}))
-                  :?exclude (fn [{: dist-from-border} crd]
-                              (>= 2 (dist-from-border crd)))})
+                  :?exclude
+                    (fn [{: hexes : dist-from-border} crd]
+                      (let [{: keep : castle : no-impassable} (hget hexes crd)]
+                        (or keep castle no-impassable
+                            (>= 2 (dist-from-border crd)))))})
       (gen-path {:algorithm :midpoint-displacement
                  :origin-f
                    (edge-picker draw-n-save :path-origin)
@@ -332,9 +376,7 @@
                        (hmerge hexes crd {:difficult idx}))
                   :?exclude
                     (fn [{: hexes} crd]
-                      (let [hex (hget hexes crd)
-                            impassable (?. hex :impassable)
-                            road (?. hex :road)]
+                      (let [{: impassable : road} (hget hexes crd)]
                         (or impassable road)))})
       choose-tiles
       symmetrize-map

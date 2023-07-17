@@ -270,7 +270,8 @@
 
 (lambda generate []
   (var saved-crd [0 0])
-  (let [draw-n-save #(let [result (draw-random $)]
+  (let [size 5
+        draw-n-save #(let [result (draw-random $)]
                        (set saved-crd result)
                        result)
         impassable-constraint
@@ -286,7 +287,7 @@
                               (. map key))]
                 (rnd-f suitable))))]
     (->
-      (gen-shape)
+      (gen-shape size)
       (gen-patch {:min-size 3
                   :max-size 7
                   :spacing 4
@@ -296,21 +297,21 @@
                  :origin-f
                    (edge-picker draw-n-save :path-origin)
                  :end-f
-                   (edge-picker draw-random :path-end)
+                   (edge-picker draw-random :lower-path-end)
                  :f (fn [hexes crd]
                       (hmerge hexes crd {:water 1}))})
       (gen-path {:algorithm :midpoint-displacement
                  :origin-f
                    #(symmetric saved-crd)
                  :end-f
-                   (edge-picker draw-random :symmetric-path-end)
+                   (edge-picker draw-random :upper-path-end)
                  :f (fn [hexes crd]
                       (hmerge hexes crd {:water 2}))})
       (gen-path {:algorithm :seek
                  :origin-f
                    (edge-picker draw-n-save :path-origin)
                  :end-f
-                   (edge-picker draw-random :path-end)
+                   (edge-picker draw-random :lower-path-end)
                  :f (fn [hexes crd]
                       (hmerge hexes crd {:road 1}))
                  :?constraint impassable-constraint})
@@ -318,7 +319,7 @@
                  :origin-f
                    #(symmetric saved-crd)
                  :end-f
-                   (edge-picker draw-random :symmetric-path-end)
+                   (edge-picker draw-random :upper-path-end)
                  :f (fn [hexes crd]
                       (hmerge hexes crd {:road 2}))
                  :?constraint impassable-constraint})

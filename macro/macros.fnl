@@ -112,6 +112,9 @@
        (let [,g ,res]
          (lua ,(.. "return " (tostring g)))))))
 
+(fn if-not [cond A B]
+  `(if ,cond ,B ,A))
+
 {: if=
  : in
  : set-methods
@@ -122,5 +125,6 @@
  : groupwise
  : pairwise
  : early
+ : if-not
  }
 

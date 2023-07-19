@@ -9,6 +9,7 @@
         : mapv
         : mapv-indexed
         : reduce
+        : merge!
         } (wesnoth.require :util))
 
 (local {: difference
@@ -45,24 +46,29 @@
 (lambda draw-random [t]
   (. t (math.random (length t))))
 
-(lambda symmetric-hex [hexes crd]
-  (hset hexes
-        (symmetric crd)
-        (hget hexes crd)))
-
 (lambda symmetrize-map [{: hexes : half? &as map}]
   (each [_ crd (ipairs (some-crds half? hexes))]
-    (symmetric-hex hexes crd))
+    (let [hex (hget hexes crd)
+          {: player} hex
+          sym (symmetric crd)]
+      (hmerge hexes sym hex)
+      (when player
+        (hmerge hexes sym {:player 2}))))
   map)
 
 (lambda to-csv [{: hexes}]
   (to-wesnoth-map-csv hexes codes))
 
-(lambda set-helpers [{: half? : on-map? &as map}]
-  (tset map
-    :map-coll-nhbrs
-      #(filter (f-and [half? on-map?])
-               (coll-neighbors $1 $2)))
+(lambda set-helpers [{: hexes : half? : on-map? &as map}]
+  (merge! map
+    {:map-coll-nhbrs
+       #(filter (f-and [half? on-map?])
+                (coll-neighbors $1 $2))
+     :set-tile
+       #(hmerge hexes $1 {:tile $2})
+     :hex
+       #(hget hexes $1)
+    })
   map)
 
 (lambda midpoint-displacement
@@ -223,10 +229,12 @@
 
 (lambda place-keep [{: hexes : half? : size : map-coll-nhbrs
                      : dist-from-border : dist-from-centerline &as map}
-                    {: ?keepsize-f : ?impassable-gap : ?border-distance : ?centerline-distance-f}]
+                    {: ?keepsize-f : ?impassable-gap : ?border-distance
+                     : ?centerline-distance-f : ?difficult-gap}]
   (let [keepsize-f (or ?keepsize-f #(+ 1 $))
         centerline-distance-f (or ?centerline-distance-f #(* $ 2))
         impassable-gap (or ?impassable-gap 2)
+        difficult-gap (or ?difficult-gap 1)
         border-distance (or ?border-distance 2)
         constraint (f-and [#(< border-distance (dist-from-border $))
                            #(< (centerline-distance-f size) (dist-from-centerline $))])
@@ -234,7 +242,7 @@
           (->> (some-crds half? hexes)
                (filter constraint))
         keep (draw-random eligible)]
-    (hmerge hexes keep {:keep 1})
+    (hmerge hexes keep {:keep 1 :player 1})
     (let [cluster [keep]]
       (for [i 1 (keepsize-f size)]
         (let [available
@@ -244,13 +252,16 @@
           (table.insert cluster new)
           (hmerge hexes new {:castle 1})))
       (each [_ crd (ipairs (map-coll-nhbrs cluster impassable-gap))]
-        (hmerge hexes crd {:no-impassable true}))))
+        (hmerge hexes crd {:no-impassable true}))
+      (each [_ crd (ipairs (map-coll-nhbrs cluster difficult-gap))]
+        (hmerge hexes crd {:no-difficult true}))))
   map)
 
-(lambda choose-tiles [{: hexes : half? &as map}]
-  (let [hex #(hget hexes $1)
-        set-tile #(hset hexes $1 {:tile $2})
-        impassable-tbl {}
+(lambda place-vills [map]
+  map)
+
+(lambda choose-tiles [{: hexes : hex : half? : set-tile &as map}]
+  (let [impassable-tbl {}
         impassable-chooser
           (random-hex-gen {:cave-wall 2
                            :mine-wall 1
@@ -274,7 +285,8 @@
         flat-terrain-chooser
           (random-hex-gen {:cave-path 1 :regular-dirt 2 :dry-dirt 2})]
     (each [_ crd (ipairs (some-crds half? hexes))]
-      (let [{: impassable : water : road : difficult : keep : castle} (hex crd)]
+      (let [{: impassable : water : road
+             : difficult : keep : castle} (hex crd)]
         (if
           keep
             (set-tile crd :human-ruined-keep)
@@ -376,8 +388,9 @@
                        (hmerge hexes crd {:difficult idx}))
                   :?exclude
                     (fn [{: hexes} crd]
-                      (let [{: impassable : road} (hget hexes crd)]
-                        (or impassable road)))})
+                      (let [{: impassable : road : no-difficult} (hget hexes crd)]
+                        (or impassable road no-difficult)))})
+      place-vills
       choose-tiles
       symmetrize-map
       to-csv)))

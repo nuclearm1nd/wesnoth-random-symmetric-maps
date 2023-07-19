@@ -1,3 +1,5 @@
+(import-macros {: <<- : if-not} "../macro/macros")
+
 (local {: merge!
         } (wesnoth.require :util))
 
@@ -59,15 +61,20 @@
 (lambda to-wesnoth-map-csv [hexes codes]
   (var result "")
   (let [[xmin xmax ymin ymax] (oddq-bounds hexes)
+        off-map (. codes :off-map)
         add (lambda [val]
               (set result (.. result val)))
-        get-code (lambda [crd]
-                   (let [cd (->
-                              (hget hexes crd)
-                              (?. :tile))]
-                     (if cd
-                       (. codes cd)
-                       (. codes :off-map))))]
+        get-code
+          (lambda [crd]
+            (<<-
+              (let [hex (hget hexes crd)])
+              (if-not hex off-map)
+              (let [{: tile : player} hex])
+              (if-not tile off-map)
+              (let [code (. codes tile)])
+              (if-not code off-map)
+              (if-not player code)
+              (.. player " " code)))]
     (for [y ymin ymax 1]
       (for [x xmin xmax 1]
         (-> [x y] to-axial get-code add)

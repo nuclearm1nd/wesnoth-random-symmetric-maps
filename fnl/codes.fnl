@@ -51,13 +51,7 @@
   (lambda []
     (. gap-table (math.random (length gap-table)))))
 
-(lambda mirror-hex [hex]
-  (if (= :keep1 hex)
-      :keep2
-      hex))
-
 {: codes
  : random-hex-gen
- : mirror-hex
  }
 

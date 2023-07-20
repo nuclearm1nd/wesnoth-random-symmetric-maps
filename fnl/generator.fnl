@@ -321,11 +321,12 @@
         (for [i 1 2]
           (let [available
                   (filter #(let [{: impassable} (hex $)] (not impassable))
-                    (map-coll-nhbrs cluster))
-                new (draw-random available)]
-            (table.insert cluster new)
-            (hmerge hexes new {:castle keep-idx})))
-        (set forward-keep-eligible (difference forward-keep-eligible (zone keep 10)))
+                    (map-coll-nhbrs cluster))]
+            (when (-> available length (> 0))
+              (let [new (draw-random available)]
+                (table.insert cluster new)
+                (hmerge hexes new {:castle keep-idx})
+                (set forward-keep-eligible (difference forward-keep-eligible (zone keep 10)))))))
         (inc! keep-idx))))
   map)
 

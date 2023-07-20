@@ -115,6 +115,9 @@
 (fn if-not [cond A B]
   `(if ,cond ,B ,A))
 
+(fn inc! [i]
+  `(set ,i (+ 1 ,i)))
+
 {: if=
  : in
  : set-methods
@@ -126,5 +129,6 @@
  : pairwise
  : early
  : if-not
+ : inc!
  }
 

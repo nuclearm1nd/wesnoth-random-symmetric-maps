@@ -1,4 +1,4 @@
-(import-macros {: <<- : in : as-> : if=} "../macro/macros")
+(import-macros {: <<- : in : as-> : if= : if-not} "../macro/macros")
 
 (local {: filter
         : remove-at-idx
@@ -25,6 +25,7 @@
         : symmetric
         : line-area
         : to-set
+        : to-array
         } (wesnoth.require :coord))
 
 (local {: hget
@@ -257,7 +258,73 @@
         (hmerge hexes crd {:no-difficult true}))))
   map)
 
-(lambda place-vills [map]
+(lambda place-vills [{: hexes : half? : map-coll-nhbrs : hex
+                      : dist-from-border : dist-from-centerline &as map}]
+  (var i 0)
+  (let [half-map (some-crds half? hexes)
+        start-location (first #(?. (hget hexes $) :player) half-map)
+        visited (to-set [start-location])
+        distances {0 [start-location]}
+        add (lambda [dist crd]
+              (let [coll (?. distances dist)]
+                (if coll
+                  (table.insert coll crd)
+                  (tset distances dist [crd]))))
+        loop-cond
+          (fn []
+            (var cond false)
+            (each [k _ (pairs distances) &until cond]
+             (set cond (>= k i)))
+            cond)]
+    (while (loop-cond)
+      (if (?. distances i)
+        (let [items (-> (. distances i)
+                        map-coll-nhbrs
+                        (difference visited))]
+          (each [_ crd (ipairs items)]
+            (let [{: impassable : water : difficult} (hex crd)]
+              (if (not impassable)
+                (if difficult
+                  (add (+ 2 i) crd)
+                  (add (+ 1 i) crd)))))
+          (union! visited items)
+          (set i (+ 1 i)))))
+    (let [join-distances
+            (lambda [arr]
+              (let [result (to-set [])]
+                (each [_ idx (ipairs arr)]
+                  (when (?. distances idx)
+                    (union! result (. distances idx))))
+                (to-array result)))]
+      (var forward-keep-eligible
+        (->> (join-distances [9 10 14 15 16])
+             (filter #(< 3 (dist-from-border $)))
+             (filter #(< 4 (dist-from-centerline $)))))
+      (var village-eligible
+        (->> (join-distances [4 5 8 9 10 11 15 16 17 18 19])
+             (filter #(< 2 (dist-from-border $)))
+             (filter #(< 4 (dist-from-centerline $)))))
+      (var keep-idx 2)
+      (while (-> forward-keep-eligible length (> 0))
+        (let [keep (draw-random forward-keep-eligible)
+              cluster [keep]]
+          (hmerge hexes keep {:keep keep-idx})
+          (for [i 1 2]
+            (let [available
+                    (filter #true
+                      (map-coll-nhbrs cluster))
+                  new (draw-random available)]
+              (table.insert cluster new)
+              (hmerge hexes new {:castle keep-idx})))
+          (set forward-keep-eligible (difference forward-keep-eligible (zone keep 10)))
+          (set village-eligible (difference village-eligible (zone keep 2)))
+          (set keep-idx (+ 1 keep-idx))))
+      (var village-idx 1)
+      (while (-> village-eligible length (> 0))
+        (let [vill (draw-random village-eligible)]
+          (hmerge hexes vill {:village village-idx})
+          (set village-eligible (difference village-eligible (zone vill 3)))
+          (set village-idx (+ 1 village-idx))))))
   map)
 
 (lambda choose-tiles [{: hexes : hex : half? : set-tile &as map}]
@@ -285,7 +352,7 @@
         flat-terrain-chooser
           (random-hex-gen {:cave-path 1 :regular-dirt 2 :dry-dirt 2})]
     (each [_ crd (ipairs (some-crds half? hexes))]
-      (let [{: impassable : water : road
+      (let [{: impassable : water : road : village
              : difficult : keep : castle} (hex crd)]
         (if
           keep
@@ -303,6 +370,8 @@
                   (let [new-tile (impassable-chooser)]
                     (set-tile crd new-tile)
                     (tset impassable-tbl impassable new-tile)))))
+          village
+            (set-tile crd :dry-cottage)
           (and road water)
             (set-tile crd :ford)
           road

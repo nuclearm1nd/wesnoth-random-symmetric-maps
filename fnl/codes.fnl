@@ -1,5 +1,6 @@
 (local codes
   {:village "Gg^Vh"
+   :dry-cottage "Re^Vh"
    :forest "Gg^Fds"
    :grass "Gg"
    :hill "Hh"

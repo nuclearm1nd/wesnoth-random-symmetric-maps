@@ -29,24 +29,32 @@
             {[:cave] 3
              [:cave-rock] 2
              [:cave :fungus] 1
-             [:cave :winter-forest] 3
+             [:dirt :fungus] 1
+             [:dry-dirt :fungus] 1
+             [:cave :winter-forest] 1
+             [:dirt :winter-forest] 1
+             [:dry-dirt :winter-forest] 1
+             [:leaf-litter :fall-forest] 1
              [:dry-hill] 3
-             [:dry-hill :winter-forest] 1})
+             [:dry-hill :winter-forest] 1
+             [:dry-hill :pine-forest] 1
+             [:dry-hill :fall-mixed-forest] 1})
         flat-terrain-chooser
           (random-hex-gen
             {[:cave-path] 1
              [:dirt] 2
-             [:dry-dirt] 2})]
+             [:dry-dirt] 2
+             [:leaf-litter] 1})]
     (lambda [hex]
       (let [{: impassable : water : road : village
              : difficult : keep : castle} hex]
         (if
           keep
-            [:human-ruined-keep]
+            [:ruined-human-keep]
           castle
             (if water
-              [:sunken-human-ruined-castle]
-              [:human-ruined-castle])
+              [:sunken-ruined-human-castle]
+              [:ruined-human-castle])
           impassable
             (if water
               [:deep-water]

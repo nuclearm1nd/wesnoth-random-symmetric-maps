@@ -48,10 +48,6 @@
    } (wesnoth.require :map))
 
 (local
-  {: codes
-   } (wesnoth.require :codes))
-
-(local
   {: gen-shape
    } (wesnoth.require :shape))
 
@@ -70,7 +66,7 @@
   map)
 
 (lambda to-csv [{: hexes}]
-  (to-wesnoth-map-csv hexes codes))
+  (to-wesnoth-map-csv hexes))
 
 (lambda set-helpers [{: hexes : half? : on-map? &as map}]
   (merge! map

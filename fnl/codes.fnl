@@ -1,64 +1,91 @@
 (local codes
-  {:village "Gg^Vh"
-   :dry-cottage "Re^Vh"
-   :swamp-village "Ss^Vhs"
-   :merfolk-village "Ww^Vm"
-   :ford-merfolk-village "Wwf^Vm"
-   :deep-merfolk-village "Wo^Vm"
-   :ancient-stone-human-city "Ias^Vhc"
-   :dry-hill-stone-village "Hhd^Vhh"
-   :cave-village "Uu^Vu"
-   :dwarven-cave-village "Uu^Vud"
-   :forest "Gg^Fds"
+  {
+   ;;; Special
+   :off-map "_off^_usr"
+
+   ;;; First position
+   ;; Flat
    :grass "Gg"
+   :dry-grass "Gd"
+   :dirt "Re"
+   :dry-dirt "Rd"
+   :sand "Ds"
+
+   ;; Road
+   :cobbles "Rp"
+   :ancient-stone "Ias"
+
+   ;; Hill
    :hill "Hh"
-   :hill-forest "Hh^Fp"
    :dry-hill "Hhd"
-   :dry-hill-forest "Hhd^Fdw"
    :mountain "Mm"
-   :impassable-mountain "Mm^Xm"
+
+   ;; Water
    :ford "Wwf"
    :shallow-water "Ww"
    :deep-water "Wo"
    :coastal-reef "Wwr"
-   :sand "Ds"
-   :fungus "Gg^Tf"
-   :hill-fungus "Hh^Tf"
    :swamp "Ss"
-   :swamp-mushroom "Ss^Tf"
    :mud "Sm"
+
+   ;; Castle
    :encampment "Ce"
-   :keep "Ke"
-   :off-map "_off^_usr"
-   :cobbles "Rp"
-   :cave-wall "Xu"
-   :mine-wall "Xuc"
-   :ancient-stone-wall "Xoa"
-   :cave-floor "Uu"
+   :human-ruined-castle "Chr"
+   :sunken-human-ruined-castle "Chw"
+   :swamp-human-ruined-castle "Chs"
+
+   ;; Keep
+   :encampment-keep "Ke"
+   :human-ruined-keep "Khr"
+   :sunken-human-ruined-keep "Khw"
+   :swamp-human-ruined-keep "Khs"
+
+   ;; Cave
+   :cave "Uu"
    :cave-path "Ur"
    :cave-rock "Uh"
    :cave-road "Urb"
-   :cave-mushroom "Uu^Tf"
-   :cave-forest "Ur^Fdw"
+
+   ;; Impassable
+   :cave-wall "Xu"
+   :mine-wall "Xuc"
+   :ancient-stone-wall "Xoa"
    :chasm "Qxu"
-   :ancient-stone "Ias"
-   :regular-dirt "Re"
-   :dry-dirt "Rd"
-   :human-ruined-castle "Chr"
-   :human-ruined-keep "Khr"
-   :sunken-human-ruined-castle "Chw"
-   :sunken-human-ruined-keep "Khw"
-   :swamp-human-ruined-castle "Chs"
-   :swamp-human-ruined-keep "Khs"
+
+   ;;; Second position
+   ;; Village
+   :cottage "Vh"
+   :human-city "Vhc"
+   :merfolk-village "Vm"
+   :swamp-village "Vhs"
+   :stone-village "Vhh"
+   :dwarven-village "Vud"
+   :cave-village "Vu"
+
+   ;; Forest
+   :forest "Fds"
+   :pine-forest "Fp"
+   :fall-forest "Fdf"
+   :winter-forest "Fdw"
+
+   ;; Other
+   :fungus "Tf"
+   :impassable-mountain "Xm"
    })
 
 (lambda random-hex-gen [weights]
-  (var gap-table [])
-  (each [k v (pairs weights)]
-    (for [i 1 v]
-      (table.insert gap-table k)))
+  (var acc 0)
+  (var weight-tbl [])
+  (each [tile prob (pairs weights)]
+    (set acc (+ prob acc))
+    (table.insert weight-tbl [acc tile]))
   (lambda []
-    (. gap-table (math.random (length gap-table)))))
+    (var result nil)
+    (let [rnd (math.random acc)]
+      (each [_ [idx tile] (ipairs weight-tbl) &until result]
+        (if (<= rnd idx)
+          (set result tile))))
+    result))
 
 {: codes
  : random-hex-gen

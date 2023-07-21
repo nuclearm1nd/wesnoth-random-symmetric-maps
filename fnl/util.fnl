@@ -122,6 +122,9 @@
     (tset t1 k v))
   t1)
 
+(lambda draw-random [t]
+  (. t (math.random (length t))))
+
 {: filter
  : remove-at-idx
  : mapv
@@ -140,5 +143,6 @@
  : every
  : every-key
  : merge!
+ : draw-random
  }
 

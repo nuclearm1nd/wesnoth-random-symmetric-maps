@@ -18,6 +18,7 @@
    : mapv-indexed
    : reduce
    : merge!
+   : draw-random
    } (wesnoth.require :util))
 
 (local
@@ -48,16 +49,15 @@
 
 (local
   {: codes
-   : random-hex-gen
-   : mirror-hex
    } (wesnoth.require :codes))
 
 (local
   {: gen-shape
    } (wesnoth.require :shape))
 
-(lambda draw-random [t]
-  (. t (math.random (length t))))
+(local
+  {: get-chooser
+   } (wesnoth.require :theme))
 
 (lambda symmetrize-map [{: hexes : half? &as map}]
   (each [_ crd (ipairs (some-crds half? hexes))]
@@ -179,9 +179,8 @@
 (lambda gen-patch [{: hexes : half? : on-map? : map-coll-nhbrs &as map}
                    {: min-size : max-size : spacing : f : ?exclude}]
   (var patch-idx 1)
-  (let [exclude (if ?exclude
-                  (partial ?exclude map)
-                  #false)
+  (let [exclude (if-not ?exclude #false
+                  (partial ?exclude map))
         taken (->> (some-crds half? hexes)
                    (filter exclude)
                    to-set)]
@@ -223,9 +222,8 @@
                        (neighbors $1 $2))
             inner-f (partial f hexes)
             constraint
-              (if ?constraint
-                (partial ?constraint map)
-                #true)
+              (if-not ?constraint #true
+                (partial ?constraint map))
             path-f (if= algorithm
                      :seek path-seek
                      :midpoint-displacement path-midpoint-displacement
@@ -350,61 +348,9 @@
   map)
 
 (lambda choose-tiles [{: hexes : hex : half? : set-tile &as map}]
-  (let [impassable-tbl {}
-        impassable-chooser
-          (random-hex-gen {:cave-wall 2
-                           :mine-wall 1
-                           :ancient-stone-wall 1})
-        difficult-water-chooser
-          (random-hex-gen {:shallow-water 1
-                           :swamp 2
-                           :coastal-reef 1
-                           :swamp-mushroom 2})
-        easy-water-chooser
-          (random-hex-gen {:ford 3
-                           :swamp 2
-                           :coastal-reef 1})
-        difficult-terrain-chooser
-          (random-hex-gen {:cave-floor 3
-                           :cave-rock 2
-                           :cave-mushroom 1
-                           :cave-forest 3
-                           :dry-hill 3
-                           :dry-hill-forest 1})
-        flat-terrain-chooser
-          (random-hex-gen {:cave-path 1 :regular-dirt 2 :dry-dirt 2})]
+  (let [chooser (get-chooser)]
     (each [_ crd (ipairs (some-crds half? hexes))]
-      (let [{: impassable : water : road : village
-             : difficult : keep : castle} (hex crd)]
-        (if
-          keep
-            (set-tile crd :human-ruined-keep)
-          castle
-            (if water
-              (set-tile crd :sunken-human-ruined-castle)
-              (set-tile crd :human-ruined-castle))
-          impassable
-            (if water
-              (set-tile crd :deep-water)
-              (let [tile (?. impassable-tbl impassable)]
-                (if tile
-                  (set-tile crd tile)
-                  (let [new-tile (impassable-chooser)]
-                    (set-tile crd new-tile)
-                    (tset impassable-tbl impassable new-tile)))))
-          village
-            (set-tile crd :dry-cottage)
-          (and road water)
-            (set-tile crd :ford)
-          road
-            (set-tile crd :ancient-stone)
-          water
-            (if difficult
-              (set-tile crd (difficult-water-chooser))
-              (set-tile crd (easy-water-chooser)))
-          (if difficult
-            (set-tile crd (difficult-terrain-chooser))
-            (set-tile crd (flat-terrain-chooser)))))))
+      (->> crd hex chooser (set-tile crd))))
   map)
 
 (lambda generate []

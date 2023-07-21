@@ -76,7 +76,10 @@
               difficult
                 (draw-random [[:cave :cave-village]
                               [:dry-hill :stone-village]])
-              [:dry-dirt :cottage])
+              (draw-random [[:dirt :cottage]
+                            [:dry-dirt :ruined-cottage]
+                            [:dry-dirt :tent]
+                            [:leaf-litter :cabin]]))
           (and road water)
             [:ford]
           road

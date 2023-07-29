@@ -264,8 +264,7 @@
         (hmerge hexes crd {:no-difficult true}))))
   map)
 
-(lambda place-forward-keeps [{: hexes : half? : map-coll-nhbrs : hex
-                              : dist-from-border : dist-from-centerline &as map}]
+(lambda estimate-distance-from-keep [{: hexes : half? : map-coll-nhbrs : hex &as map}]
   (var i 0)
   (let [start-location (first
                          #(?. (hget hexes $) :player)
@@ -303,34 +302,40 @@
                   (add (+ 1 i) crd)))))
           (union! visited items)))
       (inc! i))
-    (var forward-keep-eligible
-      (->> (join-distances [9 10 14 15 16])
-           (filter #(< 3 (dist-from-border $)))
-           (filter #(< 4 (dist-from-centerline $)))))
-    (var keep-idx 2)
-    (while (-> forward-keep-eligible length (> 0))
-      (let [keep (draw-random forward-keep-eligible)
-            cluster [keep]]
-        (hmerge hexes keep {:keep keep-idx})
-        (for [i 1 2]
-          (let [available
-                  (filter #(let [{: impassable} (hex $)] (not impassable))
-                    (map-coll-nhbrs cluster))]
-            (when (-> available length (> 0))
-              (let [new (draw-random available)]
-                (table.insert cluster new)
-                (hmerge hexes new {:castle keep-idx})
-                (set forward-keep-eligible (difference forward-keep-eligible (zone keep 10)))))))
-        (inc! keep-idx))))
+    (tset map :est-dists distances)
+    (tset map :join-distances join-distances))
   map)
 
-(lambda place-villages [{: hexes : half? : hex : map-coll-nhbrs
+(lambda place-forward-keeps [{: hexes : map-coll-nhbrs : hex : join-distances
+                              : dist-from-border : dist-from-centerline &as map}]
+  (var forward-keep-eligible
+    (->> (join-distances [8 9 10 13 14 15])
+         (filter #(< 3 (dist-from-border $)))
+         (filter #(< 4 (dist-from-centerline $)))))
+  (var keep-idx 2)
+  (while (-> forward-keep-eligible length (> 0))
+    (let [keep (draw-random forward-keep-eligible)
+          cluster [keep]]
+      (hmerge hexes keep {:keep keep-idx})
+      (for [i 1 2]
+        (let [available
+                (filter #(let [{: impassable} (hex $)] (not impassable))
+                  (map-coll-nhbrs cluster))]
+          (when (-> available length (> 0))
+            (let [new (draw-random available)]
+              (table.insert cluster new)
+              (hmerge hexes new {:castle keep-idx})
+              (set forward-keep-eligible (difference forward-keep-eligible (zone keep 10)))))))
+      (inc! keep-idx)))
+  map)
+
+(lambda place-villages [{: hexes : half? : hex : map-coll-nhbrs : join-distances
                          : dist-from-border : dist-from-centerline &as map}]
   (let [half-map (some-crds half? hexes)
         castles (filter #(let [{: castle : keep} (hex $)] (or castle keep)) half-map)
         castle-neighbors (map-coll-nhbrs castles 2)]
     (var village-eligible
-      (as-> h half-map
+      (as-> h (join-distances [3 4 5 6 7 8 9 10 11 12 13 14 15])
             (filter #(< 2 (dist-from-border $)) h)
             (filter #(< 4 (dist-from-centerline $)) h)
             (filter #(let [{: impassable} (hex $)] (not impassable)) h)
@@ -423,6 +428,7 @@
                     (fn [{: hexes} crd]
                       (let [{: impassable : road : no-difficult} (hget hexes crd)]
                         (or impassable road no-difficult)))})
+      estimate-distance-from-keep
       place-forward-keeps
       place-villages
       choose-tiles

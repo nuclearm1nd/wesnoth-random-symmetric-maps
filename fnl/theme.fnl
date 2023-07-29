@@ -12,7 +12,8 @@
           (random-hex-gen
             {[:cave-wall] 2
              [:mine-wall] 1
-             [:ancient-stone-wall] 1})
+             [:ancient-stone-wall] 1
+             [:green-stone-wall] 1})
         difficult-water-chooser
           (random-hex-gen
             {[:shallow-water] 1
@@ -38,7 +39,8 @@
              [:dry-hill] 3
              [:dry-hill :winter-forest] 1
              [:dry-hill :pine-forest] 1
-             [:dry-hill :fall-mixed-forest] 1})
+             [:dry-hill :fall-mixed-forest] 1
+             [:dry-mountain] 1})
         flat-terrain-chooser
           (random-hex-gen
             {[:cave-path] 1

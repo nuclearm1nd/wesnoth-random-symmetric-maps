@@ -55,8 +55,25 @@
   {: get-chooser
    } (wesnoth.require :theme))
 
-(lambda symmetrize-map [{: hexes : half? &as map}]
-  (each [_ crd (ipairs (some-crds half? hexes))]
+(lambda set-helpers [{: hexes : half? : on-map? &as map}]
+  (merge! map
+    {:map-neighbors
+              #(filter (f-and [half? on-map?])
+                       (neighbors $1 $2))
+     :map-coll-nhbrs
+       #(filter (f-and [half? on-map?])
+                (coll-neighbors $1 $2))
+     :set-tile
+       #(hmerge hexes $1 {:tile $2})
+     :hex
+       #(hget hexes $1)
+     :half-map
+       (some-crds half? hexes)
+    })
+  map)
+
+(lambda symmetrize-map [{: hexes : half-map &as map}]
+  (each [_ crd (ipairs half-map)]
     (let [hex (hget hexes crd)
           {: player} hex
           sym (symmetric crd)]
@@ -67,18 +84,6 @@
 
 (lambda to-csv [{: hexes}]
   (to-wesnoth-map-csv hexes))
-
-(lambda set-helpers [{: hexes : half? : on-map? &as map}]
-  (merge! map
-    {:map-coll-nhbrs
-       #(filter (f-and [half? on-map?])
-                (coll-neighbors $1 $2))
-     :set-tile
-       #(hmerge hexes $1 {:tile $2})
-     :hex
-       #(hget hexes $1)
-    })
-  map)
 
 (lambda midpoint-displacement
   [initial-crd
@@ -172,17 +177,15 @@
     (each [_ crd (ipairs stack)]
       (f crd))))
 
-(lambda gen-patch [{: hexes : half? : on-map? : map-coll-nhbrs &as map}
+(lambda gen-patch [{: hexes : half-map : on-map? : map-coll-nhbrs &as map}
                    {: min-size : max-size : spacing : f : ?exclude}]
   (var patch-idx 1)
   (let [exclude (if-not ?exclude #false
                   (partial ?exclude map))
-        taken (->> (some-crds half? hexes)
+        taken (->> half-map
                    (filter exclude)
                    to-set)]
-    (var free (difference
-                (some-crds half? hexes)
-                taken))
+    (var free (difference half-map taken))
     (while (< 0 (length free))
       (let [to-take (math.min (length free)
                               (math.random min-size max-size))
@@ -207,16 +210,13 @@
           (set free (difference free new-taken))))))
   map)
 
-(lambda gen-path [{: hexes : half? : on-map? &as map}
+(lambda gen-path [{: hexes : half? : on-map? : map-neighbors &as map}
                   {: algorithm : origin-f : end-f : f
                    : ?iterations : ?distance-func : ?constraint}]
   (let [origin (origin-f map)
         end (end-f map)]
     (when (and origin end)
-      (let [map-neighbors
-              #(filter (f-and [half? on-map?])
-                       (neighbors $1 $2))
-            inner-f (partial f hexes)
+      (let [inner-f (partial f hexes)
             constraint
               (if-not ?constraint #true
                 (partial ?constraint map))
@@ -234,7 +234,7 @@
            : ?distance-func}))))
   map)
 
-(lambda place-keep [{: hexes : half? : size : map-coll-nhbrs
+(lambda place-keep [{: hexes : half-map : size : map-coll-nhbrs
                      : dist-from-border : dist-from-centerline &as map}
                     {: ?keepsize-f : ?impassable-gap : ?border-distance
                      : ?centerline-distance-f : ?difficult-gap}]
@@ -245,9 +245,7 @@
         border-distance (or ?border-distance 2)
         constraint (f-and [#(< border-distance (dist-from-border $))
                            #(< (centerline-distance-f size) (dist-from-centerline $))])
-        eligible
-          (->> (some-crds half? hexes)
-               (filter constraint))
+        eligible (filter constraint half-map)
         keep (draw-random eligible)]
     (hmerge hexes keep {:keep 1 :player 1})
     (let [cluster [keep]]
@@ -264,11 +262,9 @@
         (hmerge hexes crd {:no-difficult true}))))
   map)
 
-(lambda estimate-distance-from-keep [{: hexes : half? : map-coll-nhbrs : hex &as map}]
+(lambda estimate-distance-from-keep [{: hexes : half-map : map-coll-nhbrs : hex &as map}]
   (var i 0)
-  (let [start-location (first
-                         #(?. (hget hexes $) :player)
-                         (some-crds half? hexes))
+  (let [start-location (first #(?. (hget hexes $) :player) half-map)
         visited (to-set [start-location])
         distances {0 [start-location]}
         add (lambda [dist crd]
@@ -329,10 +325,9 @@
       (inc! keep-idx)))
   map)
 
-(lambda place-villages [{: hexes : half? : hex : map-coll-nhbrs : join-distances
+(lambda place-villages [{: hexes : half-map : hex : map-coll-nhbrs : join-distances
                          : dist-from-border : dist-from-centerline &as map}]
-  (let [half-map (some-crds half? hexes)
-        castles (filter #(let [{: castle : keep} (hex $)] (or castle keep)) half-map)
+  (let [castles (filter #(let [{: castle : keep} (hex $)] (or castle keep)) half-map)
         castle-neighbors (map-coll-nhbrs castles 2)]
     (var village-eligible
       (as-> h (join-distances [3 4 5 6 7 8 9 10 11 12 13 14 15])
@@ -348,9 +343,9 @@
         (inc! village-idx))))
   map)
 
-(lambda choose-tiles [{: hexes : hex : half? : set-tile &as map}]
+(lambda choose-tiles [{: hexes : hex : half-map : set-tile &as map}]
   (let [chooser (get-chooser)]
-    (each [_ crd (ipairs (some-crds half? hexes))]
+    (each [_ crd (ipairs half-map)]
       (->> crd hex chooser (set-tile crd))))
   map)
 

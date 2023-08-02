@@ -374,55 +374,53 @@
         {:?keepsize-f #(+ 1 $)
          :?impassable-gap 3
          :?border-distance 2})
-      (gen-patch {:min-size 2
-                  :max-size (+ 1 size)
-                  :spacing 4
-                  :f (fn [hexes crd idx]
-                       (hmerge hexes crd {:impassable idx}))
-                  :?exclude
-                    (fn [{: hexes : dist-from-border} crd]
-                      (let [{: keep : castle : no-impassable} (hget hexes crd)]
-                        (or keep castle no-impassable
-                            (>= 2 (dist-from-border crd)))))})
-      (gen-path {:algorithm :midpoint-displacement
-                 :origin-f
-                   (edge-picker draw-n-save :path-origin)
-                 :end-f
-                   (edge-picker draw-random :lower-path-end)
-                 :f (fn [hexes crd]
-                      (hmerge hexes crd {:water 1}))})
-      (gen-path {:algorithm :midpoint-displacement
-                 :origin-f
-                   #(symmetric saved-crd)
-                 :end-f
-                   (edge-picker draw-random :upper-path-end)
-                 :f (fn [hexes crd]
-                      (hmerge hexes crd {:water 2}))})
-      (gen-path {:algorithm :seek
-                 :origin-f
-                   (edge-picker draw-n-save :path-origin)
-                 :end-f
-                   (edge-picker draw-random :lower-path-end)
-                 :f (fn [hexes crd]
-                      (hmerge hexes crd {:road 1}))
-                 :?constraint impassable-constraint})
-      (gen-path {:algorithm :seek
-                 :origin-f
-                   #(symmetric saved-crd)
-                 :end-f
-                   (edge-picker draw-random :upper-path-end)
-                 :f (fn [hexes crd]
-                      (hmerge hexes crd {:road 2}))
-                 :?constraint impassable-constraint})
-      (gen-patch {:min-size 1
-                  :max-size size
-                  :spacing 2
-                  :f (fn [hexes crd idx]
-                       (hmerge hexes crd {:difficult idx}))
-                  :?exclude
-                    (fn [{: hexes} crd]
-                      (let [{: impassable : road : no-difficult} (hget hexes crd)]
-                        (or impassable road no-difficult)))})
+      (gen-patch
+        {:min-size 2
+         :max-size (+ 1 size)
+         :spacing 4
+         :f (fn [hexes crd idx]
+              (hmerge hexes crd {:impassable idx}))
+         :?exclude
+           (fn [{: hexes : dist-from-border} crd]
+             (let [{: keep : castle : no-impassable} (hget hexes crd)]
+               (or keep castle no-impassable
+                   (>= 2 (dist-from-border crd)))))})
+      (gen-path
+        {:algorithm :midpoint-displacement
+         :origin-f (edge-picker draw-n-save :path-origin)
+         :end-f (edge-picker draw-random :lower-path-end)
+         :f (fn [hexes crd]
+              (hmerge hexes crd {:water 1}))})
+      (gen-path
+        {:algorithm :midpoint-displacement
+         :origin-f #(symmetric saved-crd)
+         :end-f (edge-picker draw-random :upper-path-end)
+         :f (fn [hexes crd]
+              (hmerge hexes crd {:water 2}))})
+      (gen-path
+        {:algorithm :seek
+         :origin-f (edge-picker draw-n-save :path-origin)
+         :end-f (edge-picker draw-random :lower-path-end)
+         :f (fn [hexes crd]
+              (hmerge hexes crd {:road 1}))
+         :?constraint impassable-constraint})
+      (gen-path
+        {:algorithm :seek
+         :origin-f #(symmetric saved-crd)
+         :end-f (edge-picker draw-random :upper-path-end)
+         :f (fn [hexes crd]
+              (hmerge hexes crd {:road 2}))
+         :?constraint impassable-constraint})
+      (gen-patch
+        {:min-size 1
+         :max-size size
+         :spacing 2
+         :f (fn [hexes crd idx]
+              (hmerge hexes crd {:difficult idx}))
+         :?exclude
+           (fn [{: hexes} crd]
+             (let [{: impassable : road : no-difficult} (hget hexes crd)]
+               (or impassable road no-difficult)))})
       estimate-distance-from-keep
       place-forward-keeps
       place-villages

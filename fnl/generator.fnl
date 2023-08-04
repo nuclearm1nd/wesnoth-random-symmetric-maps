@@ -351,7 +351,8 @@
 
 (lambda generate []
   (var saved-crd [0 0])
-  (let [size 5
+  (let [{: settings} globals
+        size (+ 3 settings.size)
         draw-n-save #(let [result (draw-random $)]
                        (set saved-crd result)
                        result)

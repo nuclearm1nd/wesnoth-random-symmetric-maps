@@ -6,47 +6,61 @@
   {: random-hex-gen
    } (wesnoth.require :codes))
 
+(lambda tracked-chooser [chooser]
+  (let [tracked-tbl {}]
+    (lambda [index]
+      (let [tile (?. tracked-tbl index)]
+        (if tile
+          tile
+          (let [new-tile (chooser)]
+            (tset tracked-tbl index new-tile)
+            new-tile))))))
+
 (lambda get-chooser []
   (let [impassable-tbl {}
-        impassable-chooser
-          (random-hex-gen
-            {[:cave-wall] 2
-             [:mine-wall] 1
-             [:ancient-stone-wall] 1
-             [:green-stone-wall] 1})
+        impassable-tracked-chooser
+          (tracked-chooser
+            (random-hex-gen
+              {[:cave-wall] 2
+               [:mine-wall] 1
+               [:ancient-stone-wall] 1
+               [:green-stone-wall] 1}))
+        road-tracked-chooser
+          (tracked-chooser
+            (random-hex-gen
+              {[:ancient-stone] 2
+               [:cobbles] 1
+               [:overgrown-cobbles] 1}))
         difficult-water-chooser
           (random-hex-gen
             {[:shallow-water] 1
-             [:swamp] 2
-             [:coastal-reef] 1
-             [:swamp :fungus] 2})
+             [:swamp] 3
+             [:coastal-reef] 3
+             [:swamp :fungus] 1})
         easy-water-chooser
           (random-hex-gen
-            {[:ford] 3
-             [:swamp] 2
+            {[:ford] 5
+             [:swamp] 1
              [:coastal-reef] 1})
         difficult-terrain-chooser
           (random-hex-gen
-            {[:cave] 3
-             [:cave-rock] 2
-             [:cave :fungus] 1
-             [:dirt :fungus] 1
-             [:dry-dirt :fungus] 1
-             [:cave :winter-forest] 1
-             [:dirt :winter-forest] 1
-             [:dry-dirt :winter-forest] 1
-             [:leaf-litter :fall-forest] 1
-             [:dry-hill] 3
+            {[:dirt :fungus] 2
+             [:dry-dirt :fungus] 2
+             [:dirt :winter-forest] 2
+             [:leaf-litter :winter-forest] 2
+             [:dry-dirt :winter-forest] 2
+             [:leaf-litter :fall-forest] 2
+             [:dry-hill] 4
              [:dry-hill :winter-forest] 1
-             [:dry-hill :pine-forest] 1
+             [:dry-hill :pine-forest] 2
              [:dry-hill :fall-mixed-forest] 1
-             [:dry-mountain] 1})
+             [:dry-mountain] 3})
         flat-terrain-chooser
           (random-hex-gen
             {[:cave-path] 1
-             [:dirt] 2
-             [:dry-dirt] 2
-             [:leaf-litter] 1})]
+             [:dirt] 3
+             [:dry-dirt] 3
+             [:leaf-litter] 2})]
     (lambda [hex]
       (let [{: impassable : water : road : village
              : difficult : keep : castle} hex]
@@ -60,24 +74,18 @@
           impassable
             (if water
               [:deep-water]
-              (let [tile (?. impassable-tbl impassable)]
-                (if tile
-                  tile
-                  (let [new-tile (impassable-chooser)]
-                    (tset impassable-tbl impassable new-tile)
-                    new-tile))))
+              (impassable-tracked-chooser impassable))
           village
             (if
               water
                 (if difficult
-                  [:deep-water :merfolk-village]
+                  [:shallow-water :merfolk-village]
                   (draw-random [[:swamp :swamp-village]
                                 [:ford :merfolk-village]]))
               road
                 [:ancient-stone :human-city]
               difficult
-                (draw-random [[:cave :cave-village]
-                              [:dry-hill :stone-village]])
+                [:dry-hill :stone-village]
               (draw-random [[:dirt :cottage]
                             [:dry-dirt :ruined-cottage]
                             [:dry-dirt :tent]
@@ -85,7 +93,7 @@
           (and road water)
             [:ford]
           road
-            [:ancient-stone]
+            (road-tracked-chooser road)
           water
             (if difficult
               (difficult-water-chooser)

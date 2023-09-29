@@ -118,6 +118,24 @@
 (fn inc! [i]
   `(set ,i (+ 1 ,i)))
 
+(fn defaults [opts defs ...]
+  (assert (-> defs length (% 2) (= 0))
+          "Even number of forms expected")
+  (let [def-opts
+          (accumulate [lst []
+                       _ [opt defv] (ipairs (partition 2 defs))]
+            (do
+              (table.insert lst opt)
+              (table.insert lst
+                `(or
+                   (. ,opts
+                      ,(->> opt
+                            tostring
+                            (.. "?")))
+                   ,defv))
+              lst))]
+    `(let ,def-opts ,...)))
+
 {: if=
  : in
  : set-methods
@@ -130,5 +148,6 @@
  : early
  : if-not
  : inc!
+ : defaults
  }
 

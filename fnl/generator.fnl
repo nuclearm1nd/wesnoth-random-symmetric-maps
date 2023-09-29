@@ -5,6 +5,7 @@
    : if=
    : if-not
    : inc!
+   : defaults
    } "../macro/macros")
 
 (local
@@ -236,30 +237,30 @@
 
 (lambda place-keep [{: hexes : half-map : size : map-coll-nhbrs
                      : dist-from-border : dist-from-centerline &as map}
-                    {: ?keepsize-f : ?impassable-gap : ?border-distance
-                     : ?centerline-distance-f : ?difficult-gap}]
-  (let [keepsize-f (or ?keepsize-f #6)
-        centerline-distance-f (or ?centerline-distance-f #$)
-        impassable-gap (or ?impassable-gap 2)
-        difficult-gap (or ?difficult-gap 1)
-        border-distance (or ?border-distance 2)
-        constraint (f-and [#(< border-distance (dist-from-border $))
-                           #(< (centerline-distance-f size) (dist-from-centerline $))])
-        eligible (filter constraint half-map)
-        keep (draw-random eligible)]
-    (hmerge hexes keep {:keep 1 :player 1})
-    (let [cluster [keep]]
-      (for [i 1 (keepsize-f size)]
-        (let [available
-                (filter constraint
-                  (map-coll-nhbrs cluster))
-              new (draw-random available)]
-          (table.insert cluster new)
-          (hmerge hexes new {:castle 1})))
-      (each [_ crd (ipairs (map-coll-nhbrs cluster impassable-gap))]
-        (hmerge hexes crd {:no-impassable true}))
-      (each [_ crd (ipairs (map-coll-nhbrs cluster difficult-gap))]
-        (hmerge hexes crd {:no-difficult true}))))
+                    opts]
+  (defaults opts
+    [keepsize-f #6
+     centerline-distance-f #$
+     impassable-gap 2
+     difficult-gap 1
+     border-distance 2]
+    (let [constraint (f-and [#(< border-distance (dist-from-border $))
+                             #(< (centerline-distance-f size) (dist-from-centerline $))])
+          eligible (filter constraint half-map)
+          keep (draw-random eligible)]
+      (hmerge hexes keep {:keep 1 :player 1})
+      (let [cluster [keep]]
+        (for [i 1 (keepsize-f size)]
+          (let [available
+                  (filter constraint
+                    (map-coll-nhbrs cluster))
+                new (draw-random available)]
+            (table.insert cluster new)
+            (hmerge hexes new {:castle 1})))
+        (each [_ crd (ipairs (map-coll-nhbrs cluster impassable-gap))]
+          (hmerge hexes crd {:no-impassable true}))
+        (each [_ crd (ipairs (map-coll-nhbrs cluster difficult-gap))]
+          (hmerge hexes crd {:no-difficult true})))))
   map)
 
 (lambda estimate-distance-from-keep [{: hexes : half-map : map-coll-nhbrs : hex &as map}]

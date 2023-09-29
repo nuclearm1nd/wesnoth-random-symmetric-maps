@@ -125,6 +125,11 @@
 (lambda draw-random [t]
   (. t (math.random (length t))))
 
+(lambda div [x y]
+  (-> x
+      (- (math.fmod x y))
+      (/ y)))
+
 {: filter
  : remove-at-idx
  : mapv
@@ -144,5 +149,6 @@
  : every-key
  : merge!
  : draw-random
+ : div
  }
 

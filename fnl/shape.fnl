@@ -1,5 +1,6 @@
 (local {: filter
         : f-and
+        : div
         } (wesnoth.require :util))
 
 (local {: connecting-line
@@ -22,15 +23,16 @@
       (lambda [[q r]]
         (or (<= 1 r)
             (and (= 0 r) (<= 0 q))))
+     qtr (div size 4)
      border-lines
-       [:below :- (-> size (+ 1) (* 2) -)
-        :above :- (-> size (+ 1) (* 2))
-        :right :| (-> size (* 2) -)
-        :left  :| (-> size (* 2))
+       [:below :- (-> size (+ qtr) (* 2) -)
+        :above :- (-> size (+ qtr) (* 2))
+        :right :| (-> size (+ qtr) (* 2) -)
+        :left  :| (-> size (+ qtr) (* 2))
         :below :/ (-> size (* 2) -)
         :above :/ (-> size (* 2))
-        :below :\ (-> size (- 1) (* 2))
-        :above :\ (-> size (- 1) (* 2) -)
+        :below :\ (-> size (* 2))
+        :above :\ (-> size (* 2) -)
         ]
      on-map? (line-area border-lines false)
      hexes []

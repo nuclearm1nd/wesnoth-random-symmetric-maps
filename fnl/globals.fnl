@@ -8,11 +8,11 @@
 
 (local
   default_settings
-  {:size 2})
+  {:size 3})
 
 (local settings_legend
   {:size
-     ["Small" "Large"]})
+     ["Tiny" "Small" "Normal" "Large" "Huge"]})
 
 (if-not (rawget _G :globals)
   (rawset _G :globals

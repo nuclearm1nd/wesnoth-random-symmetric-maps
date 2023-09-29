@@ -238,8 +238,8 @@
                      : dist-from-border : dist-from-centerline &as map}
                     {: ?keepsize-f : ?impassable-gap : ?border-distance
                      : ?centerline-distance-f : ?difficult-gap}]
-  (let [keepsize-f (or ?keepsize-f #(+ 1 $))
-        centerline-distance-f (or ?centerline-distance-f #(* $ 2))
+  (let [keepsize-f (or ?keepsize-f #6)
+        centerline-distance-f (or ?centerline-distance-f #$)
         impassable-gap (or ?impassable-gap 2)
         difficult-gap (or ?difficult-gap 1)
         border-distance (or ?border-distance 2)
@@ -352,7 +352,7 @@
 (lambda generate []
   (var saved-crd [0 0])
   (let [{: settings} globals
-        size (+ 3 settings.size)
+        size (+ 6 settings.size)
         draw-n-save #(let [result (draw-random $)]
                        (set saved-crd result)
                        result)
@@ -372,12 +372,12 @@
       (gen-shape size)
       set-helpers
       (place-keep
-        {:?keepsize-f #(+ 1 $)
+        {;:?keepsize-f #(+ 1 $)
          :?impassable-gap 3
          :?border-distance 2})
       (gen-patch
         {:min-size 2
-         :max-size (+ 1 size)
+         :max-size 5 ;(+ 1 size)
          :spacing 4
          :f (fn [hexes crd idx]
               (hmerge hexes crd {:impassable idx}))
@@ -414,7 +414,7 @@
          :?constraint impassable-constraint})
       (gen-patch
         {:min-size 1
-         :max-size size
+         :max-size 5 ;size
          :spacing 2
          :f (fn [hexes crd idx]
               (hmerge hexes crd {:difficult idx}))

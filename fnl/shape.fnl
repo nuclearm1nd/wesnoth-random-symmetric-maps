@@ -23,18 +23,18 @@
         (or (<= 1 r)
             (and (= 0 r) (<= 0 q))))
      border-lines
-       [:below :- (-> size (+ 1) (* 4) -)
-        :above :- (-> size (+ 1) (* 4))
-        :right :| (-> size (* 4) -)
-        :left  :| (-> size (* 4))
-        :below :/ (-> size (* 4) -)
-        :above :/ (-> size (* 4))
-        :below :\ (-> size (- 1) (* 4))
-        :above :\ (-> size (- 1) (* 4) -)
+       [:below :- (-> size (+ 1) (* 2) -)
+        :above :- (-> size (+ 1) (* 2))
+        :right :| (-> size (* 2) -)
+        :left  :| (-> size (* 2))
+        :below :/ (-> size (* 2) -)
+        :above :/ (-> size (* 2))
+        :below :\ (-> size (- 1) (* 2))
+        :above :\ (-> size (- 1) (* 2) -)
         ]
      on-map? (line-area border-lines false)
      hexes []
-     bounds (* size 6)]
+     bounds (* size 12)]
     (for [q (- bounds) bounds 1]
       (for [r (- bounds) bounds 1]
         (when (on-map? [q r])
@@ -55,7 +55,7 @@
        : dist-from-border
        : dist-from-centerline
        :path-origin
-         (connecting-line [2 0] [(-> size (- 1) (* 4) (- 2)) 0])
+         (connecting-line [2 0] [(-> size (- 1) (* 2) (- 2)) 0])
        :lower-path-end
          (filter
            (line-constraint [:\ 0] :below)

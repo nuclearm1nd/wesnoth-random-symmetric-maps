@@ -37,6 +37,8 @@
    : line-area
    : to-set
    : to-array
+   : join-distance-map
+   : distance-map-difference
    } (wesnoth.require :coord))
 
 (local
@@ -58,18 +60,22 @@
 
 (lambda set-helpers [{: hexes : half? : on-map? &as map}]
   (merge! map
-    {:map-neighbors
-              #(filter (f-and [half? on-map?])
-                       (neighbors $1 $2))
-     :map-coll-nhbrs
+    {:halfmap-neighbors
+       #(filter (f-and [half? on-map?])
+                (neighbors $1 $2))
+     :halfmap-coll-nhbrs
        #(filter (f-and [half? on-map?])
                 (coll-neighbors $1 $2))
+     :map-coll-nhbrs
+       #(filter on-map? (coll-neighbors $1 $2))
      :set-tile
        #(hmerge hexes $1 {:tile $2})
      :hex
        #(hget hexes $1)
      :half-map
        (some-crds half? hexes)
+     :whole-map
+       (all-crds hexes)
     })
   map)
 
@@ -89,7 +95,7 @@
 (lambda midpoint-displacement
   [initial-crd
    destination-crd
-   {: map-neighbors
+   {: halfmap-neighbors
     : ?iterations
     : ?distance-func}]
   (var points [initial-crd destination-crd])
@@ -102,7 +108,7 @@
           (let [mid (midpoint crd1 crd2)
                 displaced
                   (difference
-                    (map-neighbors mid (df i))
+                    (halfmap-neighbors mid (df i))
                     (connecting-line crd1 crd2))]
             (assert
               (< 0 (length displaced))
@@ -122,14 +128,14 @@
 (lambda path-midpoint-displacement
   [initial-crd
    destination-crd
-   {: map-neighbors
+   {: halfmap-neighbors
     : f
     : ?constraint
     : ?iterations
     : ?distance-func}]
   (each [_ [crd1 crd2]
            (->> (midpoint-displacement initial-crd destination-crd
-                                       {: map-neighbors : ?iterations : ?distance-func})
+                                       {: halfmap-neighbors : ?iterations : ?distance-func})
                 couples
                 ipairs)]
     (path-straight crd1 crd2 f ?constraint)))
@@ -137,7 +143,7 @@
 (lambda path-seek
   [origin
    end
-   {: map-neighbors
+   {: halfmap-neighbors
     : f
     : ?constraint}]
   (var finished false)
@@ -166,7 +172,7 @@
             (push current)
             (set finished true))
           (let [nhbrs (difference
-                        (filter constraint (map-neighbors current 1))
+                        (filter constraint (halfmap-neighbors current 1))
                         visited)]
             (if (= 0 (length nhbrs))
               (if (= 0 (length stack))
@@ -178,7 +184,7 @@
     (each [_ crd (ipairs stack)]
       (f crd))))
 
-(lambda gen-patch [{: hexes : half-map : on-map? : map-coll-nhbrs &as map}
+(lambda gen-patch [{: hexes : half-map : on-map? : halfmap-coll-nhbrs &as map}
                    {: min-size : max-size : spacing : f : ?exclude}]
   (var patch-idx 1)
   (let [exclude (if-not ?exclude #false
@@ -195,7 +201,7 @@
         (for [i 1 (- to-take 1)]
           (let [available
                   (difference
-                    (map-coll-nhbrs cluster)
+                    (halfmap-coll-nhbrs cluster)
                     taken)
                 new (draw-random available)]
             (table.insert cluster new)))
@@ -211,7 +217,7 @@
           (set free (difference free new-taken))))))
   map)
 
-(lambda gen-path [{: hexes : half? : on-map? : map-neighbors &as map}
+(lambda gen-path [{: hexes : half? : on-map? : halfmap-neighbors &as map}
                   {: algorithm : origin-f : end-f : f
                    : ?iterations : ?distance-func : ?constraint}]
   (let [origin (origin-f map)
@@ -228,14 +234,14 @@
         (path-f
           origin
           end
-          {: map-neighbors
+          {: halfmap-neighbors
            :f inner-f
            :?constraint constraint
            : ?iterations
            : ?distance-func}))))
   map)
 
-(lambda place-keep [{: hexes : half-map : size : map-coll-nhbrs
+(lambda place-keep [{: hexes : half-map : size : halfmap-coll-nhbrs
                      : dist-from-border : dist-from-centerline &as map}
                     opts]
   (defaults opts
@@ -253,60 +259,64 @@
         (for [i 1 (keepsize-f size)]
           (let [available
                   (filter constraint
-                    (map-coll-nhbrs cluster))
+                    (halfmap-coll-nhbrs cluster))
                 new (draw-random available)]
             (table.insert cluster new)
             (hmerge hexes new {:castle 1})))
-        (each [_ crd (ipairs (map-coll-nhbrs cluster impassable-gap))]
+        (each [_ crd (ipairs (halfmap-coll-nhbrs cluster impassable-gap))]
           (hmerge hexes crd {:no-impassable true}))
-        (each [_ crd (ipairs (map-coll-nhbrs cluster difficult-gap))]
+        (each [_ crd (ipairs (halfmap-coll-nhbrs cluster difficult-gap))]
           (hmerge hexes crd {:no-difficult true})))))
   map)
 
-(lambda estimate-distance-from-keep [{: hexes : half-map : map-coll-nhbrs : hex &as map}]
+(lambda estimate-distance-from-start-point
+  [{: hexes : whole-map : map-coll-nhbrs : hex &as map}
+   opts]
   (var i 0)
-  (let [start-location (first #(?. (hget hexes $) :player) half-map)
-        visited (to-set [start-location])
-        distances {0 [start-location]}
-        add (lambda [dist crd]
-              (let [coll (?. distances dist)]
-                (if coll
-                  (table.insert coll crd)
-                  (tset distances dist [crd]))))
-        loop-cond
-          (fn []
-            (var cond false)
-            (each [k _ (pairs distances) &until cond]
-             (set cond (>= k i)))
-            cond)
-        join-distances
-          (lambda [arr]
-            (let [result (to-set [])]
-              (each [_ idx (ipairs arr)]
-                (when (?. distances idx)
-                  (union! result (. distances idx))))
-              (to-array result)))]
-    (while (loop-cond)
-      (when (?. distances i)
-        (let [items (-> (. distances i)
-                        map-coll-nhbrs
-                        (difference visited))]
-          (each [_ crd (ipairs items)]
-            (let [{: impassable : water : difficult} (hex crd)]
-              (when (not impassable)
-                (if difficult
-                  (add (+ 2 i) crd)
-                  (add (+ 1 i) crd)))))
-          (union! visited items)))
-      (inc! i))
-    (tset map :est-dists distances)
-    (tset map :join-distances join-distances))
+  (defaults opts
+    [save-to-key :est-dists
+     difficult-step 3
+     player 1]
+    (let [start-location
+            (first
+              #(-> (hget hexes $)
+                   (?. :player)
+                   (= player))
+              whole-map)
+          visited (to-set [start-location])
+          distances {0 [start-location]}
+          add (lambda [dist crd]
+                (let [coll (?. distances dist)]
+                  (if coll
+                    (table.insert coll crd)
+                    (tset distances dist [crd]))))
+          loop-cond
+            (fn []
+              (var cond false)
+              (each [k _ (pairs distances) &until cond]
+               (set cond (>= k i)))
+              cond)]
+      (while (loop-cond)
+        (when (?. distances i)
+          (let [items (-> (. distances i)
+                          map-coll-nhbrs
+                          (difference visited))]
+            (each [_ crd (ipairs items)]
+              (let [{: impassable : water : difficult} (hex crd)]
+                (when (not impassable)
+                  (if difficult
+                    (add (+ difficult-step i) crd)
+                    (add (+ 1 i) crd)))))
+            (union! visited items)))
+        (inc! i))
+      (tset map save-to-key distances)))
   map)
 
-(lambda place-forward-keeps [{: hexes : map-coll-nhbrs : hex : join-distances
+(lambda place-forward-keeps [{: hexes : halfmap-coll-nhbrs : hex : est-dists : half?
                               : dist-from-border : dist-from-centerline &as map}]
   (var forward-keep-eligible
-    (->> (join-distances [8 9 10 13 14 15])
+    (->> (join-distance-map est-dists [8 9 10 13 14 15]) ;; join distance array should depend on map size
+         (filter half?)
          (filter #(< 3 (dist-from-border $)))
          (filter #(< 4 (dist-from-centerline $)))))
   (var keep-idx 2)
@@ -317,7 +327,7 @@
       (for [i 1 2]
         (let [available
                 (filter #(let [{: impassable} (hex $)] (not impassable))
-                  (map-coll-nhbrs cluster))]
+                  (halfmap-coll-nhbrs cluster))]
           (when (-> available length (> 0))
             (let [new (draw-random available)]
               (table.insert cluster new)
@@ -326,17 +336,19 @@
       (inc! keep-idx)))
   map)
 
-(lambda place-villages [{: hexes : half-map : hex : map-coll-nhbrs : join-distances
+(lambda place-villages [{: hexes : half-map : hex : map-coll-nhbrs : est-dists : est-opponent-dists
                          : dist-from-border : dist-from-centerline &as map}]
+  (assert (-> est-opponent-dists length (> 18))
+    "Either distances from opponent starting point haven't been calculated properly or map is too small")
   (let [castles (filter #(let [{: castle : keep} (hex $)] (or castle keep)) half-map)
-        castle-neighbors (map-coll-nhbrs castles 2)]
+        castle-neighbors (map-coll-nhbrs castles 1)]
     (var village-eligible
-      (as-> h (join-distances [3 4 5 6 7 8 9 10 11 12 13 14 15])
+      (as-> h (distance-map-difference est-dists est-opponent-dists 12)
             (filter #(< 2 (dist-from-border $)) h)
-            (filter #(< 4 (dist-from-centerline $)) h)
             (filter #(let [{: impassable} (hex $)] (not impassable)) h)
             (difference h castle-neighbors)))
     (var village-idx 1)
+    (assert (-> village-eligible length (> 0)) "No suitable hexes for placing villages")
     (while (-> village-eligible length (> 0))
       (let [village-crd (draw-random village-eligible)]
         (hmerge hexes village-crd {:village village-idx})
@@ -423,7 +435,15 @@
            (fn [{: hexes} crd]
              (let [{: impassable : road : no-difficult} (hget hexes crd)]
                (or impassable road no-difficult)))})
-      estimate-distance-from-keep
+      symmetrize-map
+      (estimate-distance-from-start-point
+        {:?save-to-key :est-dists
+         :?player 1
+         :?difficult-step 3})
+      (estimate-distance-from-start-point
+        {:?save-to-key :est-opponent-dists
+         :?player 2
+         :?difficult-step 2})
       place-forward-keeps
       place-villages
       choose-tiles

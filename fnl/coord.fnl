@@ -1,4 +1,4 @@
-(import-macros {: if= : in} "../macro/macros")
+(import-macros {: if= : in : if-not} "../macro/macros")
 
 (local {: mapv
         : reduce
@@ -247,6 +247,37 @@
            table.unpack
            math.min))))
 
+(lambda join-distance-map [distance-map distances]
+  (let [result (to-set [])]
+    (each [_ idx (ipairs distances)]
+      (when (?. distance-map idx)
+        (union! result (. distance-map idx))))
+    (to-array result)))
+
+(lambda invert-distance-map [distance-map]
+  "Take a map in form
+   distance -> array of coordinates
+   and transform it into map
+   coordinate key -> distance"
+  (let [result {}]
+    (each [dist arr (pairs distance-map)]
+      (each [_ crd (ipairs arr)]
+        (tset result (to-key crd) dist)))
+    result))
+
+(lambda distance-map-difference
+  [distance-map1 distance-map2 margin]
+  (let [result []
+        add (lambda [crd-key]
+              (table.insert result (to-crd crd-key)))
+        inverted1 (invert-distance-map distance-map1)
+        inverted2 (invert-distance-map distance-map2)]
+    (each [crd-key dist1 (pairs inverted1)]
+      (let [dist2 (. inverted2 crd-key)]
+        (when (<= margin (- dist2 dist1))
+          (add crd-key))))
+    result))
+
 {: to-set
  : to-array
  : union
@@ -272,5 +303,7 @@
  : midpoint
  : constraint-difference
  : line-collection-distance
+ : join-distance-map
+ : distance-map-difference
 }
 

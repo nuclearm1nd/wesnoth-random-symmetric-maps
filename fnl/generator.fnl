@@ -39,6 +39,7 @@
    : to-array
    : join-distance-map
    : distance-map-difference
+   : new-coord-map
    } (wesnoth.require :coord))
 
 (local
@@ -148,7 +149,11 @@
     : ?constraint}]
   (var finished false)
   (var current origin)
-  (let [visited {}
+  (let [visited (new-coord-map)
+        visited-filter
+          (lambda [crd]
+            (let [value (or (visited.get crd) 0)]
+              (>= 3 value)))
         constraint (or ?constraint #true)
         weighted-random
           (fn [dist nhbrs]
@@ -161,19 +166,21 @@
                   (for [i 1 cnt 1]
                     (table.insert rndt new-crd))))
               (draw-random rndt)))
-          stack []
-          push #(table.insert stack $)
-          pop #(table.remove stack)]
+        stack []
+        push #(table.insert stack $)
+        pop #(table.remove stack)]
     (while (not finished)
-      (union! visited [current])
+      (visited.set
+        current
+        #(if $ (+ 1 $) 1))
       (let [dist (distance current end)]
         (if (= 0 dist)
           (do
             (push current)
             (set finished true))
-          (let [nhbrs (difference
-                        (filter constraint (halfmap-neighbors current 1))
-                        visited)]
+          (let [nhbrs (->> (halfmap-neighbors current 1)
+                           (filter constraint)
+                           (filter visited-filter))]
             (if (= 0 (length nhbrs))
               (if (= 0 (length stack))
                 (set finished true)

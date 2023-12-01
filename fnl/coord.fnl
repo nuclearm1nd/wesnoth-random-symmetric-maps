@@ -278,6 +278,17 @@
           (add crd-key))))
     result))
 
+(lambda new-coord-map []
+  (let [inner {}]
+    {:set
+       (lambda [crd f]
+         (let [crd-key (to-key crd)
+               value (. inner crd-key)]
+           (tset inner crd-key (f value))))
+     :get
+       (lambda [crd]
+         (. inner (to-key crd)))}))
+
 {: to-set
  : to-array
  : union
@@ -305,5 +316,6 @@
  : line-collection-distance
  : join-distance-map
  : distance-map-difference
+ : new-coord-map
 }
 
